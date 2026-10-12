@@ -1,10 +1,49 @@
-# Hello World
+# Vibe — German Learning App
 
-A simple static website for GitHub Pages.
+Сейчас реализован только этап 0: мобильный экран настройки ключа и модели OpenAI и проверка прямого браузерного подключения. Требования: [docs/requirements.md](docs/requirements.md), порядок работ: [docs/implementation-plan.md](docs/implementation-plan.md).
 
-Open `index.html` in your browser to preview it.
+## Локальный запуск
 
-In repository Settings → Pages, select **Deploy from a branch**, then
-choose **main** and **/ (root)** and save.
+Нужен Node.js 22.12+ (для CI используется 22).
 
-Website address after publishing: https://serssp.github.io/vibe/
+```sh
+npm ci
+npm run dev
+```
+
+Открыть адрес с `/vibe/`, показанный Vite. Production-проверка:
+
+```sh
+npm run typecheck
+npm test
+npm run build
+npx playwright install chromium
+npm run test:browser
+npm run preview
+```
+
+`test:browser` сам запускает production preview на `127.0.0.1:4173/vibe/`. Тесты используют фиктивный ключ и подменяют API; OpenAI не вызывается. На Linux для Playwright могут требоваться системные зависимости: `npx playwright install --with-deps chromium`.
+
+## Настройка и тест OpenAI
+
+Открыть приложение, ввести свой ключ в поле API key и модель, нажать «Сохранить настройки», затем «Проверить подключение». Ключ и модель можно заменить; «Удалить ключ» удаляет локальный ключ. Проверка использует текущие значения полей. Сохранение обеспечивает восстановление после обновления страницы.
+
+Используется `POST https://api.openai.com/v1/responses` через стандартный браузерный `fetch` в адаптере `src/infrastructure/openai-connection.ts`. UI вызывает сценарий `checkConnection`. Backend, proxy и OpenAI SDK не добавлены. В [официальном SDK](https://developers.openai.com/api/reference/typescript) браузерный режим доступен с `dangerouslyAllowBrowser: true`; для одного тестового запроса достаточно `fetch`.
+
+Начальное значение модели `gpt-4.1-mini` можно изменить; доступ зависит от аккаунта. Промпт [connection-check.md](src/prompts/connection-check.md), версия 1: проверка подключения, входных параметров нет, ожидается краткий текст `Hallo!`. Это не промпт генерации учебных текстов. Ответ проверяется на завершённость и наличие текста. Если API возвращает использование токенов, оно показывается.
+
+Ключ хранится в localStorage отдельно (`vibe.openai-api-key`), только на устройстве пользователя, и отправляется в Authorization только на фиксированный адрес OpenAI. Ключ доступен браузеру — это согласованное ограничение MVP. Не помещать его в файлы, `.env`, GitHub Secrets для сборки, URL или логи. При недоступном localStorage можно проверить соединение без сохранения. Запрос имеет таймаут 20 секунд и кнопку отмены; автоматических повторов и фоновых запросов нет.
+
+HTTP 401 отображается как неверный ключ, 403 — нет доступа, 429 — лимит/баланс, 400/404 — проверьте модель. Для сетевого отказа показывается сообщение об интернете/CORS: браузер не позволяет надёжно различить эти причины. Наличие browser-side SDK само по себе не доказывает CORS из конкретного origin. `npm run check:cors` отдельно делает реальный браузерный запрос с намеренно неверным ключом из origin опубликованного сайта и ожидает читаемый HTTP 401; этот запрос не выполняется в CI и не подтверждает ответ модели. Реальную проверку с действующим ключом нужно выполнить с сайта на телефоне.
+
+## GitHub Pages
+
+Адрес: https://serssp.github.io/vibe/ . Vite всегда собирает с базой `/vibe/`; приложение не использует вложенные маршруты и загружается по этому адресу после обновления страницы.
+
+В Settings → Pages → Build and deployment выбрать **GitHub Actions**. Workflow `.github/workflows/pages.yml` выполняет `npm ci`, typecheck, unit-проверки, production build и браузерные mock-проверки, затем публикует только `dist` через официальный Pages artifact. На `main` выполняется публикация, в pull request — только проверки. Workflow не получает OpenAI key. Если публикация заблокирована настройками Pages, не обходить её публикацией исходников или добавлением backend.
+
+## Приёмка этапа 0
+
+На реальном Android Chrome открыть опубликованный сайт, обновить страницу, сохранить свой ключ, обновить и выполнить тест. Ожидается «OpenAI ответил» и `Hallo!`. Заменить ключ на заведомо неверное значение: ожидается понятная ошибка. Отключить сеть: ожидается сетевая ошибка; вернуть сеть и повторить. Проверить замену и удаление ключа после обновления. Ключ не передавать в отчёт.
+
+Автоматический Chromium с мобильным viewport не заменяет Android Chrome. Mock-успех не подтверждает ответ OpenAI. Результаты выполненных проверок и оставшиеся критерии находятся в [docs/stage-0-report.md](docs/stage-0-report.md). До подтверждения реального OpenAI и телефона этап 0 не считается принятым; следующие этапы не выполняются.
