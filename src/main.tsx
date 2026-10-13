@@ -1,10 +1,14 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
-import { OpenAIConnectionProvider } from './infrastructure/openai-connection';
+import { App } from './app/App';
+import { createServices } from './app/create-services';
 import './style.css';
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Не найден контейнер приложения.');
-const provider = new OpenAIConnectionProvider();
-createRoot(root).render(<StrictMode><App provider={provider} /></StrictMode>);
+const services = createServices();
+createRoot(root).render(
+  <StrictMode>
+    <App settings={services.settings} />
+  </StrictMode>,
+);

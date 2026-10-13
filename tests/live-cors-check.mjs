@@ -11,14 +11,24 @@ try {
       mode: 'cors',
       credentials: 'omit',
       redirect: 'error',
-      headers: { Authorization: 'Bearer invalid-test-credential', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'gpt-4.1-mini', input: 'Reply with exactly: Hallo!', max_output_tokens: 64, store: false }),
+      headers: {
+        Authorization: 'Bearer invalid-test-credential',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        input: 'Reply with exactly: Hallo!',
+        max_output_tokens: 64,
+        store: false,
+      }),
       signal: AbortSignal.timeout(20000),
     });
     return response.status;
   });
   assert.equal(status, 401);
-  console.log('PASS: real browser CORS from https://serssp.github.io, HTTP 401 readable with a deliberately invalid credential');
+  console.log(
+    'PASS: real browser CORS from https://serssp.github.io, HTTP 401 readable with a deliberately invalid credential',
+  );
 } finally {
   await browser.close();
 }

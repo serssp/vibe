@@ -1,22 +1,12 @@
-export interface ConnectionRequest {
-  apiKey: string;
-  model: string;
-  signal: AbortSignal;
-}
-
-export interface ConnectionResult {
-  text: string;
-  totalTokens?: number;
-}
-
-export interface ConnectionProvider {
-  check(request: ConnectionRequest): Promise<ConnectionResult>;
-}
-
-export class ConnectionError extends Error {}
+import {
+  ConnectionError,
+  type AIProvider,
+  type ConnectionRequest,
+  type ConnectionResult,
+} from '../ports/ai-provider';
 
 export async function checkConnection(
-  provider: ConnectionProvider,
+  provider: AIProvider,
   request: ConnectionRequest,
 ): Promise<ConnectionResult> {
   if (!request.apiKey.trim()) throw new ConnectionError('Введите API key.');
