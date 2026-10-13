@@ -1,7 +1,7 @@
 # Leselampe-Inspired Design and UX Plan
 
 **Date:** 2026-10-13
-**Status:** Implementation authorized by the user on 2026-10-13. D1–D5 implemented; D6 verification recorded below.
+**Status:** D1–D5 implemented; D6 local, CI and published mock verification passed. Real Android acceptance remains outstanding. Implementation was authorized by the user on 2026-10-13.
 **Scope:** Bring Vibe's existing mobile reading experience and visual design closer to [Leselampe](https://github.com/clbagrat/leselampe).
 **Related documents:** [Requirements](requirements.md), [Architecture](architecture.md), [Testing](testing.md).
 
@@ -227,7 +227,7 @@ Automated checks use dummy credentials and mocked AI transport. Real OpenAI requ
 
 The visual reference was inspected in [Leselampe's stylesheet](https://github.com/clbagrat/leselampe/blob/main/styles.css). The update follows its paper/ink palette, serif reading surface, compact toolbar and rounded floating cards, with a darker coral action colour for readable contrast and labelled navigation.
 
-Local verification: `npm run check` passed with 160 tests, strict application/Domain typechecks, lint, formatting, architecture checks and production build. `npm run test:browser` passed all five scripts, including mock AI, native IndexedDB, existing learning/backup regressions and the design suite. The design suite checks all four phone widths and 200% root text, selected-word overlap, panel navigation, delayed-response isolation, appearance/position restoration and direct links to a different saved text. Deployment verification is recorded after publication.
+Local verification: `npm run check` passed with 160 tests, strict application/Domain typechecks, lint, formatting, architecture checks and production build. `npm run test:browser` passed all five scripts, including mock AI, native IndexedDB, existing learning/backup regressions and the design suite. The design suite checks all four phone widths and 200% root text, selected-word overlap, panel navigation, delayed-response isolation, appearance/position restoration and direct links to a different saved text. Deployment verification is recorded below.
 
 ### Mobile captures
 
@@ -241,3 +241,11 @@ These 390×844 Chromium captures contain synthetic records and mocked responses:
 Further acceptance depends on real Android Chrome checks; no further implementation stage or learning-schema change is required by this update.
 
 Remote runs [38366408275](https://github.com/serssp/vibe/actions/runs/38366408275) and [38366961030](https://github.com/serssp/vibe/actions/runs/38366961030) passed the existing workflows and design request/position checks, then exposed mobile layout expansion at 320 pixels with 200% text on the CI platform. The second diagnostic reported a 349-pixel fixed navigation. Explicit navigation-label spans, wrapping button text and bounded mobile text adjustment prevent content from expanding the viewport. Design checks now compare document overflow to the root client width, wait for resize painting and report geometry; one CSS pixel of renderer rounding is allowed only for the fixed-navigation rectangle. The final deployment result is recorded below.
+
+### Published verification — 2026-10-13
+
+Implementation commit `1016a47` passed [GitHub Actions run 38381140392](https://github.com/serssp/vibe/actions/runs/38381140392): build checks, 160 tests, all five browser scripts and GitHub Pages deployment succeeded. The published [Vibe site](https://serssp.github.io/vibe/) serves the same JavaScript and CSS asset hashes as the locally checked production build.
+
+Both `tests/daily-browser-check.mjs` and `tests/design-browser-check.mjs` passed against `https://serssp.github.io/vibe/` in isolated Chromium contexts with mocked API responses. The published daily check covered learning/completion/rereading, pending recovery, backup download/validation/restore and 502-record pagination. The design check covered transient Back/Escape/dismissal, selected-word geometry, stale results, appearance/position recovery, local filters, all phone widths with 200% root text, and deep links to a different saved text.
+
+These are automated checks of the deployed application. No real OpenAI request or real Android Chrome verification was performed. The remaining acceptance dependency is the manual device check listed in D6.
