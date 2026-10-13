@@ -2,7 +2,7 @@
 
 Date: 2026-10-13. Authorization: the user accepted stage 2 and requested the next three stages together. This report covers generation; [stage 4](stage-4-report.md) and [stage 5](stage-5-report.md) cover the subsequent authorized work.
 
-Status: implementation and automated local verification complete. Real OpenAI content quality and a real phone have not been verified. Changes remain local and have not been committed or deployed.
+Status: implementation and automated local verification complete. Real OpenAI content quality and a real phone have not been verified. Code commit `71e307c` was published through GitHub Actions after the user authorized publication.
 
 ## Changes and modules
 
@@ -16,18 +16,20 @@ Status: implementation and automated local verification complete. Real OpenAI co
 
 The final shared stages 3–5 batch passed:
 
-| Check                        | Result                                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check`              | Both strict typechecks, lint without warnings, formatting, architecture, 127/127 tests across 9 suites, and production build passed |
-| Architecture                 | No violations: 47 modules, 125 dependencies; Domain also compiled without DOM/Node.js ambient types                                 |
-| `npm run test:browser`       | All 18 groups passed: 6 connection/settings, 4 native IndexedDB, 8 production learning/gesture groups in Chromium 390×844           |
-| Secret/build scan            | No OpenAI key patterns found in src/tests/dist/.github/docs; dummy credentials and test artifacts absent from dist                  |
-| Real OpenAI / Android Chrome | Not performed; automated API responses are mocked and Chromium touch input is synthetic                                             |
-| GitHub Actions / deployment  | Not run for this local batch; the existing workflow invokes the expanded checks                                                     |
+| Check                        | Result                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`              | Both strict typechecks, lint without warnings, formatting, architecture, 127/127 tests across 9 suites, and production build passed            |
+| Architecture                 | No violations: 47 modules, 125 dependencies; Domain also compiled without DOM/Node.js ambient types                                            |
+| `npm run test:browser`       | All 18 groups passed: 6 connection/settings, 4 native IndexedDB, 8 production learning/gesture groups in Chromium 390×844                      |
+| Secret/build scan            | No OpenAI key patterns found in src/tests/dist/.github/docs; dummy credentials and test artifacts absent from dist                             |
+| Real OpenAI / Android Chrome | Not performed; automated API responses are mocked and Chromium touch input is synthetic                                                        |
+| GitHub Actions / deployment  | [Run 38355009069](https://github.com/serssp/vibe/actions/runs/38355009069): build checks and Pages deployment passed for code commit `71e307c` |
 
 Architecture subprocess tests required execution outside the sandbox, which blocks child Node.js processes; the browser tests also require local preview servers. The checks passed with the applicable permissions. Generation tests cover atomic persistence and restore, stable sentence IDs, failure without losing the prior text, cancellation, concurrent-action prevention, recent topics and preference preservation. Structured transport tests validate strict payloads, unsupported shapes, refusals and key exclusion.
 
 Production browser tests exercise generation options, loading, disabled duplicate actions, cancellation, invalid responses, reload without AI, escaped markup and a synthetic capacity failure that preserves the prior text. All AI results are mocked.
+
+The published site [serssp.github.io/vibe](https://serssp.github.io/vibe/) was checked separately in Chromium 390×844 with mocked OpenAI responses: all eight production learning groups passed, including generation/options/refresh, word cards/repeated marks/undo, failed lookups after reload, noun/sense/separable-form fixtures, long press and keyboard grammar entry, movement/scroll/pointer cancellation, offline cache, network retry, and synthetic capacity failure. No browser page errors were detected. This is published browser verification, not a real model response or real Android verification.
 
 ## Acceptance evidence and limits
 
@@ -40,6 +42,6 @@ Production browser tests exercise generation options, loading, disabled duplicat
 | No parallel generations                     | Application and UI reject concurrent actions; provider permits one active request                                     |
 | No requests from re-render                  | Initial load/refresh issue no AI calls; explicit buttons/gestures own network actions                                 |
 
-Approximate reading length uses 70/90/110 words per minute for A1/A2/B1 as a prompt target, not a measured personal reading speed. Real coherence, CEFR accuracy and topic diversity require manual assessment. Previous documents remain stored; history UI is stage 7. Position autosave, adaptive review and completion are stage 6. GitHub Actions/deployment for this batch has not run.
+Approximate reading length uses 70/90/110 words per minute for A1/A2/B1 as a prompt target, not a measured personal reading speed. Real coherence, CEFR accuracy and topic diversity require manual assessment. Previous documents remain stored; history UI is stage 7. Position autosave, adaptive review and completion are stage 6. GitHub Actions and deployment passed; see [Run 38355009069](https://github.com/serssp/vibe/actions/runs/38355009069): build checks and Pages deployment passed for code commit `71e307c`.
 
 Manual acceptance steps are in [testing.md](testing.md). The user's explicit batch authorization permitted continuing through stages 4–5 without an intermediate approval. Stage 6 has not started.

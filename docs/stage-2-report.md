@@ -38,7 +38,7 @@ Stage 2 stores facts and provides transaction primitives; generation, vocabulary
 | Real Android Chrome       | Not checked for this version; automated mobile Chromium does not replace a real phone                                                                                                                             |
 | Requirements/plan         | Existing local edits preserved; neither document was modified by stage 2 work                                                                                                                                     |
 
-No backend or production storage dependency was added. Native storage tests run against source modules on a dedicated Vite server; production UI checks separately run against the built `/vibe/` preview. These are local results, not evidence for the currently deployed version.
+No backend or production storage dependency was added. Native storage tests run against source modules on a dedicated Vite server; production UI checks separately run against the built `/vibe/` preview. These describe the historical stage 2 local snapshot. The integrated stages 2–5 implementation was subsequently published in code commit `71e307c`; [Run 38355009069](https://github.com/serssp/vibe/actions/runs/38355009069) passed build checks and deployment. Current published-browser verification is recorded in the stage 3–5 reports.
 
 ## Acceptance criteria
 
@@ -51,4 +51,4 @@ No backend or production storage dependency was added. Native storage tests run 
 | Transactions and migrations are tested               | Fake IndexedDB integration suite and native Chromium rollback/concurrency/upgrade checks passed                                                  |
 | Key is absent from exportable learning data          | Domain AppSettings has no key; runtime validation rejects extra fields, including nested arrays; separate localStorage compatibility checks pass |
 
-All stage 2 acceptance criteria have local automated evidence. The current UI remains the connection/settings screen, so learning-data workflows are exercised through the repository tests. GitHub Actions deployment and real Android verification remain unverified for this version. Stage 3 requires user acceptance of this report; work stops here.
+All stage 2 acceptance criteria have local automated evidence. At the end of stage 2 the UI was the connection/settings screen, so learning-data workflows were exercised through repository tests. Stage 2 was later accepted and stages 3–5 authorized together. Their integrated implementation has since passed CI/deployment and published mock browser checks; real Android verification remains outstanding.

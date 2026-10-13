@@ -2,7 +2,7 @@
 
 Date: 2026-10-13. Scope: the second stage of the user's explicitly authorized stages 3–5 batch.
 
-Status: implementation and automated local verification complete. Real model interpretation and Android touch behavior remain unverified. Changes are local and not deployed.
+Status: implementation and automated local verification complete. Real model interpretation and Android touch behavior remain unverified. Code commit `71e307c` was published through GitHub Actions after the user authorized publication.
 
 ## Changes and modules
 
@@ -17,18 +17,20 @@ Status: implementation and automated local verification complete. Real model int
 
 The final shared stages 3–5 batch passed:
 
-| Check                        | Result                                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check`              | Both strict typechecks, lint without warnings, formatting, architecture, 127/127 tests across 9 suites, and production build passed |
-| Architecture                 | No violations: 47 modules, 125 dependencies; Domain also compiled without DOM/Node.js ambient types                                 |
-| `npm run test:browser`       | All 18 groups passed: 6 connection/settings, 4 native IndexedDB, 8 production learning/gesture groups in Chromium 390×844           |
-| Secret/build scan            | No OpenAI key patterns found in src/tests/dist/.github/docs; dummy credentials and test artifacts absent from dist                  |
-| Real OpenAI / Android Chrome | Not performed; automated API responses are mocked and Chromium touch input is synthetic                                             |
-| GitHub Actions / deployment  | Not run for this local batch; the existing workflow invokes the expanded checks                                                     |
+| Check                        | Result                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run check`              | Both strict typechecks, lint without warnings, formatting, architecture, 127/127 tests across 9 suites, and production build passed            |
+| Architecture                 | No violations: 47 modules, 125 dependencies; Domain also compiled without DOM/Node.js ambient types                                            |
+| `npm run test:browser`       | All 18 groups passed: 6 connection/settings, 4 native IndexedDB, 8 production learning/gesture groups in Chromium 390×844                      |
+| Secret/build scan            | No OpenAI key patterns found in src/tests/dist/.github/docs; dummy credentials and test artifacts absent from dist                             |
+| Real OpenAI / Android Chrome | Not performed; automated API responses are mocked and Chromium touch input is synthetic                                                        |
+| GitHub Actions / deployment  | [Run 38355009069](https://github.com/serssp/vibe/actions/runs/38355009069): build checks and Pages deployment passed for code commit `71e307c` |
 
 Architecture subprocess tests required execution outside the sandbox, which blocks child Node.js processes; the browser tests also require local preview servers. The checks passed with the applicable permissions. Integration tests cover ging/gehen association, unverified meanings remaining separate, repeated taps, contextual cache/model keys, failed intent after reopening, explicit retry, late/cancelled responses, out-of-order undo, restoration of previously Learned state and concurrent connections without counter loss.
 
 Production browser tests use native Chromium touch events and mocked responses: card display, noun article/gender, distinct Bank senses, separated aufstehen components, vocabulary persistence, undo, failed lookup after reload, explicit retry and cached offline lookup. The shared gesture tests verify scroll/movement/cancellation without accidental marks.
+
+The published site [serssp.github.io/vibe](https://serssp.github.io/vibe/) was checked separately in Chromium 390×844 with mocked OpenAI responses: all eight production learning groups passed, including generation/options/refresh, word cards/repeated marks/undo, failed lookups after reload, noun/sense/separable-form fixtures, long press and keyboard grammar entry, movement/scroll/pointer cancellation, offline cache, network retry, and synthetic capacity failure. No browser page errors were detected. This is published browser verification, not a real model response or real Android verification.
 
 ## Acceptance evidence and limits
 
@@ -44,4 +46,4 @@ Production browser tests use native Chromium touch events and mocked responses: 
 
 Only 100 recent candidates are sent to AI to limit context cost. Older unmatched senses may remain separate; no spelling-based merge is performed. Cancelled initial marks leave inactive records with count 0 to preserve immutable relationships, and these are hidden from the personal list. Stage 6 must use effective history when selecting review vocabulary.
 
-The reports distinguish mocked interpretation from real OpenAI quality. No valid key or real model request was used. GitHub Actions/deployment was not run. The batch proceeds to stage 5 under the existing authorization; stage 6 remains outside scope.
+The reports distinguish mocked interpretation from real OpenAI quality. No valid key or real model request was used. GitHub Actions and deployment passed; see [Run 38355009069](https://github.com/serssp/vibe/actions/runs/38355009069): build checks and Pages deployment passed for code commit `71e307c`. The batch proceeds to stage 5 under the existing authorization; stage 6 remains outside scope.

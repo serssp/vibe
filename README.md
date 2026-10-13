@@ -66,4 +66,4 @@ Database `vibe.learning` now uses schema version 2. Migration 1 created the orig
 
 Generation creates the minimal session needed to associate vocabulary actions with a text. Completion, reading-position autosave/recovery, adaptive vocabulary review, and learning results are stage 6. History UI and import/export are stage 7. No completion button or automatic Learned transitions have been introduced. Stage 6 requires the user's next instruction after the reports.
 
-The current changes are local and have not been deployed. Real OpenAI content quality and real Android touch behavior require manual verification; automated tests use mocked responses.
+Stages 2–5 are deployed at [serssp.github.io/vibe](https://serssp.github.io/vibe/). GitHub Actions and published Chromium mock checks passed; evidence is recorded in the stage reports. Real OpenAI content quality and real Android touch behavior require manual verification; automated tests use mocked responses.
