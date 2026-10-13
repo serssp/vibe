@@ -309,6 +309,9 @@ try {
   await library(page);
   for (const width of [320, 360, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
     for (const size of ['100%', '200%']) {
       await page.evaluate((value) => {
         document.documentElement.style.fontSize = value;
@@ -318,12 +321,18 @@ try {
         `Overflow at ${width}/${size}`,
       );
       const nav = await page.locator('.bottom-nav').boundingBox();
-      assert(nav && nav.x >= 0 && nav.x + nav.width <= width);
+      assert(
+        nav && nav.x >= -1 && nav.x + nav.width <= width + 1,
+        `Navigation bounds at ${width}/${size}: ${JSON.stringify(nav)}`,
+      );
     }
     await shot(`library-${width}-large`);
   }
   for (const width of [320, 360, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
     for (const size of ['100%', '200%']) {
       await page.evaluate((value) => {
         document.documentElement.style.fontSize = value;

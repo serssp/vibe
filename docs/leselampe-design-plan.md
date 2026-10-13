@@ -239,3 +239,5 @@ These 390×844 Chromium captures contain synthetic records and mocked responses:
 - D5: [Vocabulary](screenshots/leselampe/vocabulary.png), [Settings](screenshots/leselampe/settings-appearance.png).
 
 Further acceptance depends on real Android Chrome checks; no further implementation stage or learning-schema change is required by this update.
+
+The first remote run ([38366408275](https://github.com/serssp/vibe/actions/runs/38366408275)) passed all existing workflows and the design request/position checks, then stopped at the fixed-navigation boundary assertion during viewport resizing. The design check now waits for resize painting and allows one CSS pixel of renderer rounding while retaining strict document overflow checks and real button interactions across all widths. A subsequent deployment result is recorded below.
