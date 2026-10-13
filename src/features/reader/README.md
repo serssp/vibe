@@ -1,3 +1,5 @@
-# Reader
+# Reader feature
 
-Stages 3–5 Presentation: GenerationPanel collects CEFR/duration; Reader renders exact German tokens and mutually exclusive tap/500 ms hold gestures. Movement, scroll, pointer cancellation and secondary touches cancel recognition and suppress a resulting synthetic click. Sentence buttons and word keyboard actions provide accessible alternatives. Dependencies: Application and Domain; IO and persistence go through injected actions. Position autosave and completion are stage 6.
+GenerationPanel selects CEFR and duration and invokes injected generation actions. Reader renders tokenized German, mutually exclusive tap/hold gestures and accessible sentence analysis. Completed texts use plain word spans; the explicit new-reading action creates a separate learning session.
+
+use-reading-position saves a stable sentence ID and offset after a 300 ms scroll pause, flushes on visibility/pagehide/navigation and restores on mount. It delegates persistence through a callback independently of network requests. Completion is an injected atomic action. Real Android gestures and abrupt browser termination require separate manual checks.

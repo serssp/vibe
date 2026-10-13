@@ -14,6 +14,8 @@ createRoot(root).render(
       generation={services.generation}
       words={services.words}
       grammar={services.grammar}
+      readingActions={services.readingActions}
+      backups={services.backups}
     />
   </StrictMode>,
 );

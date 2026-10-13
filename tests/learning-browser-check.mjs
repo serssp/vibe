@@ -69,7 +69,7 @@ try {
       result =
         mode === 'invalid'
           ? { title: 'bad', sentences: [] }
-          : { title: 'Der Spaziergang', sentences: sentenceList };
+          : { title: 'Der Spaziergang', sentences: sentenceList, occurrences: [] };
     } else if (kind === 'word') {
       if (input.surfaceForm === 'Bank') {
         const meaning = input.sentence.includes('geschlossen')

@@ -5,6 +5,8 @@ import { IndexedDbLearningRepository } from '../infrastructure/storage/indexeddb
 import { BrowserRuntime } from '../infrastructure/browser-runtime';
 import { createGenerationActions } from '../application/use-cases/generate-text';
 import { createWordActions } from '../application/use-cases/lookup-word';
+import { createReadingActions } from '../application/use-cases/reading';
+import { createBackupActions } from '../application/use-cases/backup';
 import { createGrammarActions } from '../application/use-cases/explain-grammar';
 
 export function createServices() {
@@ -14,6 +16,8 @@ export function createServices() {
   return {
     settings: createSettingsActions(provider, new LocalSettingsRepository()),
     learning,
+    readingActions: createReadingActions(learning, runtime),
+    backups: createBackupActions(learning, runtime),
     generation: createGenerationActions(provider, learning, runtime),
     words: createWordActions(provider, learning, runtime),
     grammar: createGrammarActions(provider, learning, runtime),

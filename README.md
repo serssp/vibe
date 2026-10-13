@@ -1,6 +1,6 @@
 # Vibe — German Learning App
 
-Stages 0–2 have been accepted by the user. The user authorized stages 3–5 together: generate and save German texts, tap words for contextual Russian translations, and hold a word to analyze the sentence grammar. Requirements: [docs/requirements.md](docs/requirements.md), execution order: [docs/implementation-plan.md](docs/implementation-plan.md), layer design: [docs/architecture.md](docs/architecture.md), schema: [docs/data-model.md](docs/data-model.md).
+A personal German reading app with contextual Russian vocabulary and grammar cards, adaptive repetition, reading history, and JSON backups. Stages 0–5 were implemented previously; the user authorized all remaining stages 6–8 together. Implementation and automated verification are complete; real Android and real model quality acceptance remain separate manual checks. Requirements: [docs/requirements.md](docs/requirements.md), execution order: [docs/implementation-plan.md](docs/implementation-plan.md), layer design: [docs/architecture.md](docs/architecture.md), schema: [docs/data-model.md](docs/data-model.md).
 
 ## Local startup
 
@@ -20,7 +20,7 @@ npm run test:browser
 npm run preview
 ```
 
-`test:browser` first checks production preview at `127.0.0.1:4173/vibe/`, then starts a Vite test server at `127.0.0.1:4174/vibe/` to exercise the IndexedDB adapter in native Chromium, and finally checks the production learning workflows and touch gestures on port 4173. Tests use a dummy key and mock or block the API; they do not call OpenAI. On Linux, Playwright may require system dependencies: `npx playwright install --with-deps chromium`. See [docs/testing.md](docs/testing.md) for verification boundaries.
+`test:browser` first checks production preview at `127.0.0.1:4173/vibe/`, then starts a Vite test server at `127.0.0.1:4174/vibe/` to exercise the IndexedDB adapter in native Chromium, then checks the production learning workflows and touch gestures on port 4173, followed by daily reading/history/backup scenarios on port 4175. Tests use a dummy key and mock or block the API; they do not call OpenAI. On Linux, Playwright may require system dependencies: `npx playwright install --with-deps chromium`. See [docs/testing.md](docs/testing.md) for verification boundaries.
 
 `npm run check` runs strict typechecks for the application and pure Domain, ESLint, Prettier checks, architectural dependency analysis, unit tests, and a build. Use `npm run format` to format files and `npm run lint:fix` for automatically fixable lint errors. The original requirements and implementation plan are excluded from automatic formatting.
 
@@ -48,11 +48,11 @@ In Settings → Pages → Build and deployment, select **GitHub Actions**. Workf
 
 Open the deployed site in real Android Chrome, refresh it, save your key, refresh again, and run the test. Expect **OpenAI responded** and `Hallo!`. Replace the key with a deliberately invalid value: expect an understandable error. Disable the network: expect a network error; restore connectivity and retry. Check key replacement and deletion after a refresh. Do not include the key in the report.
 
-Automated Chromium with a mobile viewport does not replace Android Chrome. Mock success does not verify an OpenAI response. Historical results are in [docs/stage-0-report.md](docs/stage-0-report.md) and [docs/stage-1-report.md](docs/stage-1-report.md). Stage 2 results are in [docs/stage-2-report.md](docs/stage-2-report.md). Current reports: [stage 3](docs/stage-3-report.md), [stage 4](docs/stage-4-report.md), [stage 5](docs/stage-5-report.md).
+Automated Chromium with a mobile viewport does not replace Android Chrome. Mock success does not verify an OpenAI response. Historical results are in [docs/stage-0-report.md](docs/stage-0-report.md) and [docs/stage-1-report.md](docs/stage-1-report.md). Stage 2 results are in [docs/stage-2-report.md](docs/stage-2-report.md). Historical reports: [stage 3](docs/stage-3-report.md), [stage 4](docs/stage-4-report.md), [stage 5](docs/stage-5-report.md). Current reports: [stage 6](docs/stage-6-report.md), [stage 7](docs/stage-7-report.md), [stage 8](docs/stage-8-report.md).
 
 ## Reading and analysis
 
-Save your key and model in settings. Choose A1/A2/B1 and 3/4/5 minutes, then press **Generate text**. The text, stable sentence IDs, initial reading session, and level/duration preferences are saved together. Refresh restores the latest text without an AI request. Previous documents remain stored; a history list and full position/session recovery belong to stages 6–7.
+Save your key and model in settings. Choose A1/A2/B1 and 3/4/5 minutes, then press **Generate text**. The text, stable sentence IDs, initial reading session, and level/duration preferences are saved together. Refresh restores the selected reading and saved sentence-relative position without an AI request. Scroll position is saved after a 300 ms pause, and pending saves are flushed on visibility change, pagehide, and reader navigation. An abrupt operating-system kill can still lose movement since the last committed save.
 
 A short tap on a word opens its contextual Russian card with the dictionary lemma, part of speech, noun article/gender, and form or expression explanation. Each successful tap records a separate mark, including cached lookups. **Undo mark** reverses that mark without deleting history. A failed lookup remains in **Unfinished marks** after refresh; retry it explicitly or cancel the mark.
 
@@ -60,10 +60,16 @@ Hold a word for approximately 500 ms to highlight the sentence and open a Russia
 
 Successful cards and explanations are cached in IndexedDB with their context, model, and prompt version. Cached actions work without network while the application is open. A changed model or prompt creates a separate cache entry. The three English [prompts](src/prompts) document their inputs, output schema, purpose, and version. Learning responses use strict JSON Schema and runtime validation, following the [official OpenAI documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses). Content is rendered as plain React text.
 
-## Persistence and stage boundaries
+## Completion, history and backups
 
-Database `vibe.learning` now uses schema version 2. Migration 1 created the original seven stores; migration 2 adds durable word-lookup intents and contextual translation cards without rewriting previous records. `createServices().learning` supplies the Application port; concrete adapters are composed only there. See [data-model.md](docs/data-model.md) and [architecture.md](docs/architecture.md).
+Press **Complete reading** below the text. Completion saves the session, confirmed word exposures, and vocabulary changes atomically. Repeated completion does not award progress again. Resolve or cancel unfinished marks first. A previous unknown word becomes Learned only if it was confirmed in the text and has no effective mark in this session; new and absent words retain their state. Undo history is respected. A later explicit tap can mark a Learned word Unknown again.
 
-Generation creates the minimal session needed to associate vocabulary actions with a text. Completion, reading-position autosave/recovery, adaptive vocabulary review, and learning results are stage 6. History UI and import/export are stage 7. No completion button or automatic Learned transitions have been introduced. Stage 6 requires the user's next instruction after the reports.
+Generation supplies up to 30 active Unknown words, prioritizing older marks. The version 2 generation prompt asks for exact contextual occurrence evidence. The application verifies the actual sentence, literal word boundaries, canonical lemma and certainty of the supplied meaning; duplicate senses are excluded. Inflections and separated verb components are deliberately skipped for automatic progress unless the canonical expression itself appears. They still work in vocabulary cards. This policy favors missing a repetition over awarding uncertain progress.
 
-Stages 2–5 are deployed at [serssp.github.io/vibe](https://serssp.github.io/vibe/). GitHub Actions and published Chromium mock checks passed; evidence is recorded in the stage reports. Real OpenAI content quality and real Android touch behavior require manual verification; automated tests use mocked responses.
+**Text history** lists title, date, level, duration, status and session count, showing 20 records at a time without deleting older data. Open unfinished readings to resume. Completed texts are read-only for word marks; grammar buttons remain available. **Start a new reading** creates a separate session explicitly. Merely viewing a completed text preserves learning facts. The personal vocabulary also pages entries and provides local per-word mark/undo/repetition history.
+
+**Backup** exports version 1 JSON containing all learning stores, preferences, pending lookups, and contextual caches. The API key is excluded. Choose a JSON file to validate and preview its record counts, then explicitly confirm replacement or cancel. Invalid shapes, versions, duplicate identities and references are rejected. Clearing and restoring every learning store happen within one transaction; a failed restore rolls back the entire replacement. Connection key/model settings in localStorage are preserved.
+
+Database `vibe.learning` uses schema version 3. Migrations 1 and 2 preserve their original stores. Migration 3 adds vocabulary-history indexes and a nullable selected-session reference to existing preferences. Upgrade and rollback tests cover v1/v2 data. See [data-model.md](docs/data-model.md), [architecture.md](docs/architecture.md), and [testing.md](docs/testing.md).
+
+Deployment and published mock verification are recorded in [stage 8](docs/stage-8-report.md). Real OpenAI quality and Android touch behavior must be checked on the user's phone; automated Chromium does not establish those acceptance criteria.

@@ -229,6 +229,11 @@ describe('Contextual vocabulary learning', () => {
       vocabulary: [{ ...first.entry, status: 'Learned', unknownCount: 2 }],
     });
     const session = (await repository.getSession(selection.sessionId))!;
+    await repository.completeReading(
+      session.id,
+      '2026-10-13T10:10:00.000Z',
+      () => 'exposure-fixture',
+    );
     const newSession = { ...session, id: 'new-session' };
     await repository.commit({ sessions: [newSession] });
     const next = await words.lookup({

@@ -1,3 +1,4 @@
+import type { VocabularyOccurrence } from '../../domain/learning/occurrences';
 import type { AIProvider, ConnectionRequest } from './ai-provider';
 import type { CefrLevel, TargetDuration } from '../../domain/reading/models';
 import type { WordCard } from '../../domain/vocabulary/word-card';
@@ -31,9 +32,12 @@ export interface GrammarRequest extends ConnectionRequest {
 
 export interface LearningAIProvider extends AIProvider {
   readonly promptVersions: { generation: string; word: string; grammar: string };
-  generate(
-    request: GenerationRequest,
-  ): Promise<{ title: string; sentences: string[]; totalTokens?: number }>;
+  generate(request: GenerationRequest): Promise<{
+    title: string;
+    sentences: string[];
+    occurrences?: VocabularyOccurrence[];
+    totalTokens?: number;
+  }>;
   translate(request: WordRequest): Promise<{ card: WordCard; totalTokens?: number }>;
   explain(request: GrammarRequest): Promise<{ rules: GrammarRule[]; totalTokens?: number }>;
 }

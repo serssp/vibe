@@ -24,7 +24,7 @@ function open(
 }
 
 describe('Learning database migrations and lifecycle', () => {
-  it('migrates actual stage 2 schema v1 to v2 without changing learning records', async () => {
+  it('migrates actual stage 2 schema v1 to the current schema without changing learning records', async () => {
     const factory = new IDBFactory();
     const options = { getFactory: () => factory, name: 'real-v1-upgrade' };
     const legacy = new IndexedDbLearningRepository({ ...options, version: 1 });
@@ -46,13 +46,57 @@ describe('Learning database migrations and lifecycle', () => {
     await upgraded.close();
     const database = new LearningDatabase(options);
     const connection = await database.open();
-    expect(connection.version).toBe(2);
+    expect(connection.version).toBe(LEARNING_SCHEMA_VERSION);
     expect(
       connection.transaction('wordTranslations').objectStore('wordTranslations').index('byContext')
         .unique,
     ).toBe(true);
     await database.close();
   });
+  it('migrates actual v2 settings without losing preferences or learning data', async () => {
+    const factory = new IDBFactory();
+    const options = { getFactory: () => factory, name: 'real-v2-upgrade' };
+    const legacy = new IndexedDbLearningRepository({ ...options, version: 2 });
+    await legacy.commit(learningFixture());
+    await legacy.close();
+    const connection = await open(factory, options.name, 2);
+    await new Promise<void>((resolve, reject) => {
+      const transaction = connection.transaction('appSettings', 'readwrite');
+      const settings = { ...learningFixture().appSettings! } as Record<string, unknown>;
+      delete settings.activeSessionId;
+      transaction.objectStore('appSettings').put(settings);
+      transaction.oncomplete = () => resolve();
+      transaction.onabort = () => reject(transaction.error);
+    });
+    connection.close();
+    const upgraded = new IndexedDbLearningRepository(options);
+    expect(await upgraded.getAppSettings()).toEqual(learningFixture().appSettings);
+    expect(await upgraded.getText('text-1')).toEqual(textDocument());
+    await upgraded.close();
+  });
+
+  it('rolls back failed v2-to-v3 settings migration and preserves the old records', async () => {
+    const factory = new IDBFactory();
+    const options = { getFactory: () => factory, name: 'failed-v3-upgrade' };
+    const legacy = new IndexedDbLearningRepository({ ...options, version: 2 });
+    await legacy.commit(learningFixture());
+    await legacy.close();
+    const failing = new LearningDatabase({
+      ...options,
+      migrations: {
+        ...learningMigrations,
+        3(_database, transaction) {
+          transaction.objectStore('appSettings').clear();
+          throw new Error('Synthetic migration failure');
+        },
+      },
+    });
+    await expect(failing.open()).rejects.toMatchObject({ code: 'migration' });
+    expect(await legacy.getAppSettings()).toEqual(learningFixture().appSettings);
+    expect(await legacy.getText('text-1')).toEqual(textDocument());
+    await legacy.close();
+  });
+
   it('creates the current schema with all stores and unique indexes', async () => {
     const database = new LearningDatabase({ getFactory: () => new IDBFactory() });
     const connection = await database.open();
@@ -176,7 +220,7 @@ describe('Learning database migrations and lifecycle', () => {
     const repository = new IndexedDbLearningRepository(options);
     await repository.commit(learningFixture());
     await repository.close();
-    const unsupported = new LearningDatabase({ ...options, version: 3 });
+    const unsupported = new LearningDatabase({ ...options, version: 4 });
     await expect(unsupported.open()).rejects.toMatchObject({ code: 'migration' });
     expect(await repository.getText('text-1')).toEqual(textDocument());
     await repository.close();
@@ -184,13 +228,13 @@ describe('Learning database migrations and lifecycle', () => {
 
   it('refuses a newer existing database and preserves its stores', async () => {
     const factory = new IDBFactory();
-    const connection = await open(factory, 'future', 3, (database) =>
+    const connection = await open(factory, 'future', 4, (database) =>
       database.createObjectStore('future-data'),
     );
     connection.close();
     const database = new LearningDatabase({ getFactory: () => factory, name: 'future' });
     await expect(database.open()).rejects.toMatchObject({ code: 'migration' });
-    const preserved = await open(factory, 'future', 3);
+    const preserved = await open(factory, 'future', 4);
     expect(preserved.objectStoreNames.contains('future-data')).toBe(true);
     preserved.close();
   });

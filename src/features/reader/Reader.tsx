@@ -1,6 +1,7 @@
 import type { ReadingSession, TextDocument } from '../../domain/reading/models';
 import type { WordSelection } from '../../domain/vocabulary/lookups';
 import { tokenize } from '../../domain/reading/tokens';
+import { useReadingPosition } from './use-reading-position';
 import { useReaderGestures } from './use-reader-gestures';
 
 export function Reader({
@@ -10,6 +11,9 @@ export function Reader({
   selectedSentenceId,
   onWord,
   onGrammar,
+  onPosition,
+  onComplete,
+  onStart,
 }: {
   text: TextDocument;
   session: ReadingSession;
@@ -17,8 +21,13 @@ export function Reader({
   selectedSentenceId?: string;
   onWord(selection: WordSelection): void;
   onGrammar(sentenceId: string): void;
+  onPosition(position: ReadingSession['readingPosition']): void;
+  onComplete(): void;
+  onStart(): void;
 }) {
-  const gestures = useReaderGestures(onWord, onGrammar, disabled);
+  const completed = session.status === 'Completed';
+  const gestures = useReaderGestures(onWord, onGrammar, disabled || completed);
+  const article = useReadingPosition(session, onPosition);
   return (
     <section aria-labelledby="reader-heading">
       <h2 id="reader-heading" lang="de">
@@ -31,6 +40,7 @@ export function Reader({
         Нажмите слово для перевода. Удерживайте слово около полусекунды для разбора предложения.
       </p>
       <article
+        ref={article}
         className="reader-text"
         lang="de"
         onContextMenu={(event) => event.preventDefault()}
@@ -43,7 +53,7 @@ export function Reader({
               className={selectedSentenceId === sentence.id ? 'sentence selected' : 'sentence'}
             >
               {tokenize(sentence.content).map((token) => {
-                if (!token.word) return <span key={token.start}>{token.content}</span>;
+                if (!token.word || completed) return <span key={token.start}>{token.content}</span>;
                 const selection: WordSelection = {
                   sessionId: session.id,
                   textId: text.id,
@@ -88,6 +98,18 @@ export function Reader({
           </div>
         ))}
       </article>
+      {completed ? (
+        <div className="result">
+          <p role="status">Чтение завершено. Просмотр не изменяет прогресс.</p>
+          <button disabled={disabled} onClick={onStart}>
+            Начать новое чтение
+          </button>
+        </div>
+      ) : (
+        <button disabled={disabled} onClick={onComplete}>
+          Завершить чтение
+        </button>
+      )}
     </section>
   );
 }

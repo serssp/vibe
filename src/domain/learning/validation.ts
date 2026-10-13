@@ -204,8 +204,9 @@ function explanation(value: unknown) {
 }
 
 function settings(value: unknown) {
-  const v = object(value, ['id', 'model', 'cefrLevel', 'targetDuration', 'ui']);
+  const v = object(value, ['id', 'activeSessionId', 'model', 'cefrLevel', 'targetDuration', 'ui']);
   oneOf(v.id, ['app']);
+  if (v.activeSessionId !== null) nonempty(v.activeSessionId);
   nonempty(v.model);
   oneOf(v.cefrLevel, ['A1', 'A2', 'B1']);
   oneOf(v.targetDuration, [3, 4, 5]);

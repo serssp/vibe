@@ -30,7 +30,9 @@ describe('Structured OpenAI transport', () => {
   it('sends strict Responses text.format schemas, separate context and prompt, no credentials in payload', async () => {
     const fetcher = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(response({ title: 'Eine Reise', sentences: ['Ich fahre nach Berlin.'] }));
+      .mockResolvedValue(
+        response({ title: 'Eine Reise', sentences: ['Ich fahre nach Berlin.'], occurrences: [] }),
+      );
     const provider = new OpenAIConnectionProvider(fetcher);
     expect(await provider.generate(generation())).toMatchObject({
       title: 'Eine Reise',
@@ -43,7 +45,7 @@ describe('Structured OpenAI transport', () => {
       strict: true,
     });
     expect(payload.text.format.schema.additionalProperties).toBe(false);
-    expect(payload.instructions).toContain('Version: 1');
+    expect(payload.instructions).toContain('Version: 2');
     expect(JSON.parse(payload.input)).toMatchObject({
       cefrLevel: 'B1',
       targetDuration: 5,

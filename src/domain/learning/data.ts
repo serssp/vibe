@@ -5,6 +5,9 @@ import type { VocabularyEntry } from '../vocabulary/models';
 import type { WordExposure, WordInteraction } from './records';
 import type { WordLookup, WordTranslation } from '../vocabulary/lookups';
 
+export type LearningSnapshot = Required<Omit<LearningWrite, 'appSettings'>> &
+  Pick<LearningWrite, 'appSettings'>;
+
 export interface LearningWrite {
   texts?: TextDocument[];
   sessions?: ReadingSession[];

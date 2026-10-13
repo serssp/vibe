@@ -92,7 +92,7 @@ export function createWordActions(
           if (provider.promptVersions.word !== lookup.promptVersion)
             throw new ConnectionError('Промпт изменился. Отмените отметку и нажмите слово заново.');
           const candidates = (await repository.listVocabulary())
-            .sort((a, b) => b.lastMarkedAt.localeCompare(a.lastMarkedAt))
+            .sort((a, b) => Date.parse(b.lastMarkedAt) - Date.parse(a.lastMarkedAt))
             .slice(0, 100);
           const result = await provider.translate({
             apiKey: request.apiKey.trim(),

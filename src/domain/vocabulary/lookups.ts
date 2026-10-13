@@ -44,7 +44,8 @@ export function markUnknown(entry: VocabularyEntry, timestamp: string): Vocabula
     ...entry,
     status: 'Unknown',
     unknownCount: entry.unknownCount + 1,
-    lastMarkedAt: timestamp > entry.lastMarkedAt ? timestamp : entry.lastMarkedAt,
+    lastMarkedAt:
+      Date.parse(timestamp) > Date.parse(entry.lastMarkedAt) ? timestamp : entry.lastMarkedAt,
   };
 }
 
@@ -65,14 +66,25 @@ export function undoUnknown(
     undefined,
   );
   const remaining = chain.filter((item) => item.id !== lookup.id && item.state === 'Resolved');
-  const latest = remaining.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const laterExternal = lookups.filter(
+    (item) =>
+      item.state === 'Resolved' &&
+      item.selection.sessionId !== lookup.selection.sessionId &&
+      Date.parse(item.createdAt) > Date.parse(lookup.createdAt),
+  );
+  const latest = [...remaining, ...laterExternal].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  )[0];
   const lastMark = latest
     ? latest.createdAt
     : (baseline?.previous?.lastMarkedAt ?? entry.createdAt);
   return {
     ...entry,
     unknownCount: Math.max(0, entry.unknownCount - 1),
-    status: remaining.length ? 'Unknown' : (baseline?.previous?.status ?? 'Unknown'),
-    lastMarkedAt: lastMark > entry.createdAt ? lastMark : entry.createdAt,
+    status:
+      remaining.length || laterExternal.length
+        ? 'Unknown'
+        : (baseline?.previous?.status ?? 'Unknown'),
+    lastMarkedAt: Date.parse(lastMark) > Date.parse(entry.createdAt) ? lastMark : entry.createdAt,
   };
 }

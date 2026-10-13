@@ -1,6 +1,6 @@
 # Vibe architecture
 
-Status: stages 3–5. Stages 0–2 were accepted; the user explicitly authorized the next three stages together. Generation, vocabulary lookup and grammar are implemented. Completion/adaptive repetition, history UI and import/export remain stages 6–7.
+Status: stages 6–8 implementation. The user authorized all remaining stages together. Reading completion, conservative adaptive repetition, history and backups extend the existing generation/vocabulary/grammar workflow. Real-device acceptance is tracked separately in the stage reports.
 
 ## Stack and tooling decisions
 
@@ -47,10 +47,10 @@ src/
   features/
     settings/SettingsPage.tsx
     reader/{GenerationPanel,Reader}.tsx
-    reader/use-reader-gestures.ts
+    reader/{use-reader-gestures,use-reading-position}.ts
     vocabulary/{VocabularyCard,VocabularyList}.tsx
     grammar/GrammarCard.tsx
-    history/README.md
+    history/{HistoryList,BackupPanel}.tsx
   application/
     ports/
       ai-provider.ts
@@ -64,11 +64,13 @@ src/
       generate-text.ts
       lookup-word.ts
       explain-grammar.ts
+      reading.ts
+      backup.ts
     errors.ts
   domain/
     reading/{models,tokens}.ts
     vocabulary/{models,lookups,word-card}.ts
-    learning/{data,records,validation}.ts
+    learning/{data,records,validation,completion,occurrences,backup}.ts
     grammar/models.ts
     settings/{app-settings,model-preferences}.ts
   infrastructure/
@@ -95,16 +97,19 @@ tests/
   learning-actions.test.ts
   structured-ai.test.ts
   learning-browser-check.mjs
+  daily-browser-check.mjs
+  reading-cycle.test.ts
+  backups.test.ts
   fixtures/{learning,provider}.ts
 ```
 
-Reader renders tokenized German text and recognizes gestures; Vocabulary renders the contextual card and personal list; Grammar renders explanations. These features receive typed actions/callbacks and have no direct feature-to-feature imports. App composes their state and props. History remains a documented boundary. Domain contains the seven primary learning entities plus word-lookup and translation records, exact token offsets, normalization and mark/undo rules. It has no browser APIs.
+Reader renders tokenized German text and recognizes gestures; Vocabulary renders the contextual card and personal list; Grammar renders explanations. These features receive typed actions/callbacks and have no direct feature-to-feature imports. App composes their state and props. History renders paged text/session summaries and a backup preview/confirmation flow. Vocabulary exposes local immutable learning facts on demand. Reader owns scroll geometry and delegates position writes through callbacks. Domain contains the seven primary learning entities plus word-lookup and translation records, exact token offsets, normalization and mark/undo rules. It has no browser APIs.
 
 ## Ports and the Settings workflow
 
 `AIProvider.check(ConnectionRequest): Promise<ConnectionResult>` is the current connection-check contract. It contains no OpenAI SDK or HTTP Response types. `ConnectionError` carries a safe UI message. `LearningAIProvider` extends the connection contract with typed generate/translate/explain operations and prompt versions. One `OpenAIConnectionProvider` instance implements both contracts and is injected into all use cases. Its historical class name is retained for compatibility; every operation shares its transport and busy limit.
 
-`StorageRepository.loadSettings()` and `saveSettings()` describe the current small local connection settings. `LocalSettingsRepository` implements it using the original localStorage names. The separate `LearningRepository` port describes typed entity reads, session-specific event/exposure reads, and atomic `commit(LearningWrite)`, and explicit resolve/undo operations for durable word lookups. Cache and vocabulary queries are typed by their domain context. It exposes no IndexedDB types, arbitrary store names, deletion API, or callback that could introduce network waits inside transactions. `IndexedDbLearningRepository` implements this port and is constructed only in `app/create-services.ts`.
+`StorageRepository.loadSettings()` and `saveSettings()` describe the current small local connection settings. `LocalSettingsRepository` implements it using the original localStorage names. The separate `LearningRepository` port describes typed entity reads, session-specific event/exposure reads, and atomic `commit(LearningWrite)`, explicit resolve/undo operations for durable word lookups, atomic start/completion and position methods, coherent snapshots, and validated full replacement for backups. Cache and vocabulary queries are typed by their domain context. It exposes no IndexedDB types, arbitrary store names, deletion API, or callback that could introduce network waits inside transactions. `IndexedDbLearningRepository` implements this port and is constructed only in `app/create-services.ts`.
 
 `createSettingsActions` connects loading, saving, key deletion, and `checkConnection`. A storage load failure returns a safe snapshot: an empty key, the default model, and a flag indicating that persistence is unavailable. Write errors propagate to the calling UI, which displays a fixed message. AI checks do not write settings; AI errors do not change local data.
 
@@ -114,11 +119,11 @@ The OpenAI adapter preserves stage 0 behavior: a fixed HTTPS endpoint, CORS, no 
 
 ## IndexedDB decisions
 
-Use the native IndexedDB API, without a production database dependency. Database `vibe.learning`, schema version 2, has nine stores and an explicit ordered migration registry. Migration 1 created the initial seven stores; migration 2 adds wordLookups/wordTranslations and their indexes, preserving existing records. Connection settings require no migration. See [data-model.md](data-model.md) for records, indexes, and invariants.
+Use the native IndexedDB API, without a production database dependency. Database `vibe.learning`, schema version 3, has nine stores and an explicit ordered migration registry. Migration 1 created the initial seven stores; migration 2 adds wordLookups/wordTranslations and their indexes, preserving existing records. Migration 3 preserves settings while adding activeSessionId and indexes for vocabulary-event history. The separate localStorage connection settings require no migration. See [data-model.md](data-model.md) for records, indexes, and invariants.
 
 The adapter takes a snapshot of incoming records, validates shapes without browser dependencies, and writes a batch in a single read/write transaction. It checks references against the staged and existing records in that same transaction, reading only referenced IDs. Transactions covering the learning stores serialize competing updates. Promise success means the transaction's `complete` event, as defined by the [IndexedDB specification](https://www.w3.org/TR/IndexedDB/), rather than the success of an individual request. Validation, uniqueness, capacity, or request failures abort the entire batch. Fixed application errors do not expose records or browser diagnostics.
 
-Documents, interactions, exposures, and explanations are immutable after insertion; an identical repeated write is accepted. Vocabulary state, unfinished-session position/state, AppSettings and lookup lifecycle states may be updated. Completed sessions cannot be changed. This supplies transaction primitives for stage 6; it does not compute word statuses or session-completion results. Included vocabulary IDs must be a subset of target IDs, but meaning-aware detection of actual occurrences belongs to stage 6.
+Documents, interactions, exposures, and explanations are immutable after insertion; an identical repeated write is accepted. Vocabulary state, unfinished-session position/state, AppSettings and lookup lifecycle states may be updated. Completed sessions cannot be changed. Completion reads current facts and vocabulary inside the same transaction, invokes the pure Domain completion rule, and commits results together. Pending lookups block completion. Completed learning cannot be undone through word actions. Included vocabulary IDs must be a subset of target IDs and are produced by the conservative occurrence verifier.
 
 The database opens lazily and deduplicates concurrent opens. Migration failure never deletes or recreates existing data. A newer existing version is refused; `versionchange` closes the old connection. Blocked opens produce a retryable error and abort any later deferred upgrade from that rejected request. Every future schema change must add an ordered migration and rollback tests; no hypothetical next migration is shipped.
 
@@ -126,7 +131,7 @@ The database opens lazily and deduplicates concurrent opens. Migration failure n
 
 ## Learning workflows and AI contracts
 
-GenerateText supplies CEFR, duration, a word-count target and five recent titles to the AI provider. The model returns an ordered sentence array; the application constructs the document and assigns sentence IDs from its UUID and sentence order. It saves document, initial InProgress session, and preferences in one transaction. The latest document/session are restored by local reads on mount. No AI request runs on render or restore. Full session/position recovery and adaptive vocabulary selection remain stage 6, so current review lists are empty.
+GenerateText supplies CEFR, duration, a word-count target and five recent titles to the AI provider. The model returns an ordered sentence array; the application constructs the document and assigns sentence IDs from its UUID and sentence order. It saves document, initial InProgress session, and preferences in one transaction. The selected document/session are restored through the persisted activeSessionId; legacy settings without a selection fall back to an unfinished text. No AI request runs on render or restore. GenerateText freezes up to 30 active Unknown candidates and stores only verified occurrence IDs. The generation prompt v2 returns grounded occurrence candidates; Domain requires exact canonical expressions, sentence boundaries, explicit sense certainty and no duplicate normalized lemmas. Inflections and separated forms are not guessed for progress.
 
 LookupWord persists a Pending WordLookup before requesting AI. The full sentence and exact UTF-16 token offsets provide context. Up to 100 recent vocabulary candidates let the model explicitly verify a matching sense; supplied IDs must also match normalized lemma, part of speech and article. An uncertain or new sense receives a fresh identity. This is a conservative policy; spelling alone never causes a merge. Inflections, separable verbs, and multiword expressions are represented by the lemma plus contextual card/expression and the original surface-form interaction.
 
@@ -137,6 +142,18 @@ ExplainGrammar receives the exact sentence and text CEFR level. Its cache key in
 The Prompt Registry reads the three separate English Markdown files and their version metadata. The adapter uses strict Responses API `text.format` JSON Schema, based on the [official OpenAI documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses), and validates returned shapes, completion, refusal and contextual fragments. HTTP diagnostics and raw bodies never reach UI. Token totals are returned for display when available. Connection timeout is 20 seconds, learning timeout 60 seconds; each operation supports abort. One provider permits one active request. Use cases and UI also prevent concurrent actions; retries require explicit user action.
 
 Reader renders original whitespace and punctuation around Unicode word tokens. Pointer recognition uses a 500 ms hold and an 8 px movement threshold. Scroll, pointer cancellation, secondary touches and focus loss cancel recognition. The resulting synthetic click is suppressed until the next intentional pointer action; keyboard activation remains available. Sentence-analysis buttons provide an accessible alternative. Cards appear over the current viewport with the source sentence and render text through React, without HTML injection. Real Android Chrome gesture verification is still required.
+
+## Reading, history and backup decisions
+
+StartReading resumes the existing unfinished session for that text, or creates a distinct InProgress session after completion. ResumeReading selects an existing session without recomputing progress. One unfinished session per text is enforced in writes and imports. The start timestamp and candidate snapshot cannot change once reading starts. Reading position writes reread the session within a transaction, so a late autosave cannot reopen or modify a completed session.
+
+Reader saves a stable sentence anchor and a pixel offset within that sentence. It restores after mounting and saves independently of AI busy state. A 300 ms scroll debounce reduces writes; visibility/pagehide/navigation flush pending changes. The browser cannot guarantee delivery after an abrupt process kill. Completed-reader word spans are plain text; an explicit new session is required before another learning mark. Grammar remains available through its sentence button.
+
+Completion intersects frozen candidates with verified included IDs, subtracts undone marks, and appends at most one exposure per session/word. First-session entries and later marks from another interrupted session remain Unknown. Absence leaves state unchanged. A Completed session returns immediately without rewriting records. Both competing completions and autosave/completion races serialize in IndexedDB.
+
+History groups separate text and session entities. Storage has no record-count cap; UI renders 20 rows initially and can reveal more. This bounds initial DOM size while retaining full history. Per-word facts use indexed reads rather than AI calls.
+
+ExportData reads all nine stores in one readonly transaction and validates a coherent LearningSnapshot. Import preview checks a strict versioned envelope, shapes, identities, contextual references and indexes in pure Domain. User confirmation triggers atomic replacement; the adapter copies and validates the preview again before clearing/writing. API key storage is outside that transaction and format. Export/import are Application actions over the repository port; file selection/download and confirmation remain Presentation concerns. See [ADR 0002](adr/0002-reading-completion-and-backups.md).
 
 ## Automated boundary enforcement
 
@@ -150,7 +167,7 @@ Static analysis protects against ordinary import violations and direct browser A
 
 ## Checks and deployment
 
-`npm run check`: both typechecks → lint with no warnings → formatting check → dependency graph → unit tests → production build. Then `npm run test:browser` checks the application with mock API responses on production preview `/vibe/` using a mobile viewport, followed by native IndexedDB tests on a separate Vite test server and production learning/gesture tests using mocked API responses and native Chromium touch events.
+`npm run check`: both typechecks → lint with no warnings → formatting check → dependency graph → unit tests → production build. Then `npm run test:browser` checks the application with mock API responses on production preview `/vibe/` using a mobile viewport, followed by native IndexedDB tests on a separate Vite test server production learning/gesture tests using mocked API responses and native Chromium touch events, and daily reading/history/backup checks on port 4175.
 
 GitHub Actions repeats these checks, publishes only `dist`, and deploys exclusively from `main` after the build job succeeds. GitHub Pages Source must remain **GitHub Actions**. Vite base URL is `/vibe/`; the current UI does not use nested routes.
 

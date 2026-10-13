@@ -1,3 +1,4 @@
+import type { VocabularyOccurrence } from '../../domain/learning/occurrences';
 import { ConnectionError } from '../../application/ports/ai-provider';
 import type { WordCard } from '../../domain/vocabulary/word-card';
 import type { GrammarRule } from '../../domain/grammar/models';
@@ -34,7 +35,19 @@ const parts = [
 ];
 
 export const schemas = {
-  generation: object({ title: string, sentences: strings }),
+  generation: object({
+    title: string,
+    sentences: strings,
+    occurrences: {
+      type: 'array',
+      items: object({
+        vocabularyId: string,
+        sentenceIndex: { type: 'integer' },
+        surfaceForm: string,
+        sameMeaning: { type: 'boolean' },
+      }),
+    },
+  }),
   word: object({
     lemma: string,
     partOfSpeech: { type: 'string', enum: parts },
@@ -65,13 +78,38 @@ export function nonempty(value: unknown): asserts value is string {
   valid(typeof value === 'string' && value.trim().length > 0 && value.length <= 20000);
 }
 
-export function parseGeneration(value: unknown): { title: string; sentences: string[] } {
-  const data = record(value, ['title', 'sentences']);
+export function parseGeneration(value: unknown): {
+  title: string;
+  sentences: string[];
+  occurrences: VocabularyOccurrence[];
+} {
+  const data = record(value, ['title', 'sentences', 'occurrences']);
   nonempty(data.title);
   valid(Array.isArray(data.sentences) && data.sentences.length > 0 && data.sentences.length <= 300);
   data.sentences.forEach(nonempty);
   valid(data.sentences.join(' ').length <= 60000);
-  return { title: data.title, sentences: data.sentences as string[] };
+  valid(Array.isArray(data.occurrences) && data.occurrences.length <= 300);
+  for (const item of data.occurrences) {
+    const occurrence = record(item, [
+      'vocabularyId',
+      'sentenceIndex',
+      'surfaceForm',
+      'sameMeaning',
+    ]);
+    nonempty(occurrence.vocabularyId);
+    nonempty(occurrence.surfaceForm);
+    valid(
+      Number.isSafeInteger(occurrence.sentenceIndex) &&
+        (occurrence.sentenceIndex as number) >= 0 &&
+        (occurrence.sentenceIndex as number) < data.sentences.length,
+    );
+    valid(typeof occurrence.sameMeaning === 'boolean');
+  }
+  return {
+    title: data.title,
+    sentences: data.sentences as string[],
+    occurrences: data.occurrences as VocabularyOccurrence[],
+  };
 }
 
 export function parseWord(value: unknown): WordCard {

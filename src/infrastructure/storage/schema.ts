@@ -1,5 +1,5 @@
 export const LEARNING_DATABASE = 'vibe.learning';
-export const LEARNING_SCHEMA_VERSION = 2;
+export const LEARNING_SCHEMA_VERSION = 3;
 export const LEARNING_STORES = [
   'texts',
   'sessions',
@@ -37,6 +37,16 @@ export const learningMigrations: Readonly<Record<number, LearningMigration>> = {
       { unique: true },
     );
     database.createObjectStore('appSettings', { keyPath: 'id' });
+  },
+  3(_database, transaction) {
+    transaction.objectStore('interactions').createIndex('byVocabulary', 'vocabularyEntryId');
+    transaction.objectStore('exposures').createIndex('byVocabulary', 'vocabularyEntryId');
+    const store = transaction.objectStore('appSettings');
+    const request = store.get('app');
+    request.onsuccess = () => {
+      if (request.result)
+        store.put({ ...request.result, activeSessionId: request.result.activeSessionId ?? null });
+    };
   },
   2(database) {
     const lookups = database.createObjectStore('wordLookups', { keyPath: 'id' });

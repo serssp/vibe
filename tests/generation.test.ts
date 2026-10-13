@@ -78,6 +78,7 @@ describe('Text generation', () => {
     await repository.commit({
       appSettings: {
         id: 'app',
+        activeSessionId: null,
         cefrLevel: 'A1',
         targetDuration: 3,
         model: 'test-model',

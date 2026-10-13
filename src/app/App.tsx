@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReadingActions } from '../application/use-cases/reading';
+import type { BackupActions } from '../application/use-cases/backup';
+import type { LearningSnapshot } from '../domain/learning/data';
+import { HistoryList } from '../features/history/HistoryList';
+import { BackupPanel } from '../features/history/BackupPanel';
 import type { SettingsActions } from '../application/use-cases/settings';
 import type { GenerationActions } from '../application/use-cases/generate-text';
 import {
@@ -24,14 +29,21 @@ export function App({
   generation,
   words,
   grammar,
+  readingActions,
+  backups,
 }: {
   settings: SettingsActions;
   generation: GenerationActions;
   words: WordActions;
   grammar: GrammarActions;
+  readingActions: ReadingActions;
+  backups: BackupActions;
 }) {
   const [reading, setReading] = useState<{ text: TextDocument; session: ReadingSession }>();
   const [preferences, setPreferences] = useState<AppSettings>();
+  const [history, setHistory] = useState<Awaited<ReturnType<ReadingActions['history']>>>([]);
+  const [localBusy, setLocalBusy] = useState(false);
+  const localActive = useRef(false);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -52,10 +64,11 @@ export function App({
 
   useEffect(() => {
     let alive = true;
-    void Promise.all([generation.restore(), generation.preferences()])
-      .then(([reading, preferences]) => {
+    void Promise.all([generation.restore(), generation.preferences(), readingActions.history()])
+      .then(([reading, preferences, history]) => {
         if (alive) {
           setReading(reading);
+          setHistory(history);
           setPreferences(preferences);
           setReady(true);
         }
@@ -70,7 +83,7 @@ export function App({
       alive = false;
       active.current?.abort();
     };
-  }, [generation]);
+  }, [generation, readingActions]);
 
   useEffect(() => {
     let alive = true;
@@ -105,7 +118,7 @@ export function App({
     cefrLevel: AppSettings['cefrLevel'],
     targetDuration: AppSettings['targetDuration'],
   ) {
-    if (active.current) return;
+    if (active.current || localActive.current) return;
     const controller = new AbortController();
     active.current = controller;
     setBusy(true);
@@ -120,6 +133,7 @@ export function App({
         signal: controller.signal,
       });
       setReading(result);
+      setHistory(await readingActions.history());
       setTotalTokens(result.totalTokens);
       closeAnalysis();
     } catch (error) {
@@ -149,7 +163,7 @@ export function App({
   }
 
   async function lookup(selection: WordSelection, lookupId?: string) {
-    if (active.current || undoBusy) return;
+    if (active.current || localActive.current || undoBusy) return;
     rememberFocus();
     const controller = new AbortController();
     active.current = controller;
@@ -184,7 +198,7 @@ export function App({
   }
 
   async function explain(sentenceId: string) {
-    if (active.current || undoBusy || !reading) return;
+    if (active.current || localActive.current || undoBusy || !reading) return;
     rememberFocus();
     const controller = new AbortController();
     active.current = controller;
@@ -214,7 +228,7 @@ export function App({
   }
 
   async function undo(id: string) {
-    if (active.current || undoBusy) return;
+    if (active.current || localActive.current || undoBusy) return;
     setUndoBusy(true);
     setAnalysisError('');
     try {
@@ -228,7 +242,80 @@ export function App({
     }
   }
 
-  const disabled = busy || analysisBusy || undoBusy;
+  async function localAction(work: () => Promise<void>) {
+    if (active.current || localActive.current || undoBusy) return;
+    localActive.current = true;
+    setLocalBusy(true);
+    setError('');
+    try {
+      await work();
+    } catch (error) {
+      setError(actionMessage(error));
+    } finally {
+      localActive.current = false;
+      setLocalBusy(false);
+    }
+  }
+
+  async function openReading(textId: string, start = false) {
+    await localAction(async () => {
+      closeAnalysis();
+      const result = start
+        ? await readingActions.start(textId)
+        : await readingActions.resume(textId);
+      if (result.session.status === 'New')
+        result.session = (await readingActions.start(textId)).session;
+      setReading(result);
+      setHistory(await readingActions.history());
+    });
+  }
+
+  async function finishReading() {
+    if (!reading) return;
+    await localAction(async () => {
+      const session = await readingActions.complete(reading.session.id);
+      closeAnalysis();
+      setReading({ text: reading.text, session });
+      await refreshWords();
+      setHistory(await readingActions.history());
+    });
+  }
+
+  async function restoreData(data: LearningSnapshot) {
+    if (active.current || localActive.current || undoBusy)
+      throw new Error('Операция уже выполняется.');
+    localActive.current = true;
+    setLocalBusy(true);
+    try {
+      await backups.restore(data);
+      closeAnalysis();
+      const [restored, preferences, history, entries] = await Promise.all([
+        generation.restore(),
+        generation.preferences(),
+        readingActions.history(),
+        words.vocabulary(),
+      ]);
+      setReading(restored);
+      setPreferences(preferences);
+      setHistory(history);
+      setVocabulary(entries);
+    } finally {
+      localActive.current = false;
+      setLocalBusy(false);
+    }
+  }
+
+  const savePosition = useCallback(
+    (position: ReadingSession['readingPosition']) => {
+      if (!sessionId) return;
+      void readingActions
+        .savePosition(sessionId, position)
+        .catch((error: unknown) => setError(actionMessage(error)));
+    },
+    [readingActions, sessionId],
+  );
+
+  const disabled = busy || analysisBusy || undoBusy || localBusy || !ready;
   const sentenceId = wordTarget?.sentenceId ?? grammarTarget;
   const sentence = reading?.text.sentences.find((item) => item.id === sentenceId)?.content ?? '';
   const analysisTokens = wordResult?.totalTokens ?? grammarResult?.totalTokens;
@@ -287,12 +374,16 @@ export function App({
       )}
       {reading && (
         <Reader
+          key={reading.session.id}
           text={reading.text}
           session={reading.session}
           disabled={disabled}
           selectedSentenceId={grammarTarget}
           onWord={(selection) => void lookup(selection)}
           onGrammar={(id) => void explain(id)}
+          onPosition={savePosition}
+          onComplete={() => void finishReading()}
+          onStart={() => void openReading(reading.text.id, true)}
         />
       )}
       {(wordTarget || grammarTarget) && (
@@ -356,7 +447,9 @@ export function App({
           )}
         </aside>
       )}
-      <VocabularyList entries={vocabulary} />
+      <VocabularyList entries={vocabulary} loadHistory={readingActions.wordHistory} />
+      <HistoryList entries={history} disabled={disabled} onOpen={(id) => void openReading(id)} />
+      <BackupPanel backups={backups} disabled={disabled} onRestore={restoreData} />
       <details className="settings-details" open>
         <summary>Настройки и проверка OpenAI</summary>
         <SettingsPage settings={settings} />

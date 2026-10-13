@@ -102,6 +102,7 @@ export function learningFixture(): LearningWrite {
     ],
     appSettings: {
       id: 'app',
+      activeSessionId: null,
       model: 'test-model',
       cefrLevel: 'A1',
       targetDuration: 3,

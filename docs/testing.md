@@ -1,6 +1,6 @@
 # Testing strategy
 
-Status: stages 3–5. Automated checks never use a valid OpenAI key or make real OpenAI requests.
+Status: stages 6–8. Automated checks never use a valid OpenAI key or make real OpenAI requests.
 
 ## Required local and CI checks
 
@@ -22,13 +22,21 @@ Run `npm run check`, then `npm run test:browser`. The first command runs applica
 | structured-ai               | Strict Responses payloads, credentials excluded from request context, prompt versions, invalid shapes, noun gender, separable forms, candidate IDs, refusals and abort                                                                                                            |
 | production learning browser | Selection/generation/refresh, invalid AI and storage failure, native word taps, contextual cards and undo, failed intent after reload, native long hold, accessible keyboard actions, movement/scroll/cancel, synthetic-click suppression, offline cache and enlarged-font layout |
 
-Repository integration tests use a fresh `fake-indexeddb` factory per fixture, with no global browser dependency. The application ships migrations 1 and 2. A regression test upgrades real schema v1 data to v2 without changing original records. Additional failing/synthetic migrations in fixtures verify runner rollback without shipping hypothetical application migrations.
+Repository integration tests use a fresh `fake-indexeddb` factory per fixture, with no global browser dependency. The application ships migrations 1–3. Regression tests upgrade actual v1 and legacy v2 records to v3, preserve existing preferences and facts, and roll back failed v2-to-v3 changes. Additional failing/synthetic migrations in fixtures verify runner rollback without shipping hypothetical application migrations.
 
 `tests/browser-check.mjs` runs against production preview on port 4173. `tests/storage-browser-check.mjs` serves source modules and synthetic fixtures through Vite on port 4174, then exercises native Chromium IndexedDB. Synthetic data and test modules are absent from the production build. The second suite validates browser transaction behavior, while the first verifies the actual production UI. `tests/learning-browser-check.mjs` separately runs generation/vocabulary/grammar against production preview, using mocked Responses payloads and Chromium native touch input through CDP. It verifies that scroll and cancelled pointers cannot produce synthetic-click analysis. All scripts use isolated browser contexts and shut down their servers. Test screenshots in this environment are saved under `/tmp/vibe-stage3-5`; they contain only mock records.
 
+## Reading, backup and stabilization coverage
+
+`tests/reading-cycle.test.ts` covers reliable canonical occurrences, absent and ambiguous words, canceled marks, first-session protection, later marks, candidate selection, atomic/idempotent completion, concurrent connections, position/completion races, pending-intent recovery, explicit rereading and local per-word evidence. A completed session rejects late undo.
+
+`tests/backups.test.ts` covers all-store round trips, empty backups, version/shape/identity/reference errors, secret-field exclusion, revalidation after preview mutation and replacement rollback after a synthetic capacity failure. The storage fixture retains 2000 documents and sessions without truncation.
+
+`tests/daily-browser-check.mjs` runs production preview on port 4175. It closes/reopens a tab to verify saved position and marks, completes first/new repetitions, views completed history, explicitly rereads, downloads a real JSON file, rejects/cancels/accepts imports, preserves the separate key, blocks unresolved completion, displays word facts, restores 502 documents and checks 20/40-row pagination. It records elapsed time for that history scenario and checks 150% mobile scaling. `VIBE_SITE=https://serssp.github.io/vibe/` runs the same mocked workflow against the deployed site without starting a local server. The browser context is isolated from user data. Screenshots use synthetic data under `/tmp/vibe-stage6-8`.
+
 ## Verification limits and manual checks
 
-Chromium at 390×844 is an automated mobile viewport check, not a real Android Chrome verification. Tests use synthetic learning records and mocked AI results. They verify browser gestures and application contracts, but do not assess the quality of real generated German, model sense matching, CEFR accuracy, or real-device touch behavior. The learning/completion algorithm remains stage 6.
+Chromium at 390×844 is an automated mobile viewport check, not a real Android Chrome verification. Tests use synthetic learning records and mocked AI results. They verify browser gestures and application contracts, but do not assess the quality of real generated German, model sense matching, CEFR accuracy, or real-device touch behavior. Automated reading-cycle tests verify completion facts and state transitions.
 
 Android Chrome checks must be reported separately. Generation, vocabulary and grammar are now testable through the UI. Real OpenAI requests and real Android gestures remain separate manual checks; automated success does not complete those acceptance criteria. A successful local check does not prove deployed GitHub Actions or a published version; report each separately.
 
@@ -39,3 +47,11 @@ Real OpenAI requests require an explicit user action. `npm run check:cors` is a 
 Use this version on a real Android Chrome device. Save a valid key/model locally, generate each intended level/duration, and assess German coherence, length and CEFR. Refresh and confirm the same text returns without another request. Tap inflected words and nouns, verify the contextual Russian meaning and article/gender, undo an accidental tap, and check vocabulary after refresh. Compare distinct meanings of the same spelling and a separable verb or fixed expression.
 
 Hold a word for about 500 ms: the whole sentence should be highlighted with a Russian explanation and no vocabulary mark. Check short taps, scrolling, movement, cancellation and the system context menu; use the sentence-analysis button as an alternative. Retry after disabling/restoring connectivity and confirm failed word marks remain available. Do not put the key into feedback. Record real requests, phone/browser version, and device observations separately from mocked tests. Stages 2–5 have been deployed and separately checked in published Chromium with mock API responses. The current stage reports link the successful CI/deployment run. Real OpenAI content and a real Android device still require the manual checks above.
+
+## Manual stages 6–8 acceptance
+
+On real Android Chrome, generate a text, mark a word, scroll, switch apps, close/reopen the tab and verify recovery. Complete reading: the new word must remain Unknown. Generate again and check a reliably included untapped word becomes Learned; a tapped word stays Unknown and an absent word is unchanged. Press completion again or refresh: counters must not increase twice. Review local word facts.
+
+Open an older unfinished text and refresh: that selected reading and position should return. View a completed text: learning facts must remain unchanged. Start a new session explicitly and confirm a new mark changes Learned back to Unknown. Export, change local learning data, choose the backup, cancel once, then restore after explicit confirmation. Verify texts, sessions, pending marks and cached explanations; key replacement/deletion still work independently. Test malformed and unsupported JSON files. Keep a backup before testing updates with real data.
+
+Exercise taps, 500 ms holds, scrolling, canceled touches, enlarged system fonts, card scrolling and one-handed access to completion and history. Test network loss during each explicit AI action and cached reading while already open. Record phone model, Android/Chrome versions, real model name and observations without including credentials. Abrupt OS process termination can lose movement since the last committed debounce save; pagehide is best effort. iOS Safari compatibility is not certified by the Chromium suite.

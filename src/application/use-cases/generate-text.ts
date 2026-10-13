@@ -8,6 +8,7 @@ import type {
   TextDocument,
   ReadingSession,
 } from '../../domain/reading/models';
+import { confirmedVocabulary } from '../../domain/learning/occurrences';
 import { validateLearningWrite } from '../../domain/learning/validation';
 
 export interface GenerateRequest extends ConnectionRequest {
@@ -33,16 +34,25 @@ export function createGenerationActions(
         throw new ConnectionError('Выберите уровень и длительность чтения.');
       busy = true;
       try {
-        const [recentTopics, preferences] = await Promise.all([
+        const [recentTopics, preferences, vocabulary] = await Promise.all([
           repository.getRecentTopics(5),
           repository.getAppSettings(),
+          repository.listVocabulary(),
         ]);
+        const candidates = vocabulary
+          .filter((entry) => entry.status === 'Unknown' && entry.unknownCount > 0)
+          .sort((a, b) => Date.parse(a.lastMarkedAt) - Date.parse(b.lastMarkedAt))
+          .slice(0, 30);
         const result = await provider.generate({
           ...request,
           apiKey: request.apiKey.trim(),
           model: request.model.trim(),
           recentTopics,
-          reviewVocabulary: [],
+          reviewVocabulary: candidates.map(({ id, lemma, meaningRu }) => ({
+            id,
+            lemma,
+            meaningRu,
+          })),
         });
         if (request.signal.aborted) throw new ConnectionError('Генерация отменена.');
         const id = runtime.id();
@@ -60,8 +70,12 @@ export function createGenerationActions(
           createdAt,
           aiModel: request.model.trim(),
           promptVersion: provider.promptVersions.generation,
-          targetVocabularyIds: [],
-          includedVocabularyIds: [],
+          targetVocabularyIds: candidates.map((entry) => entry.id),
+          includedVocabularyIds: confirmedVocabulary(
+            result.sentences,
+            vocabulary,
+            result.occurrences ?? [],
+          ).filter((id) => candidates.some((entry) => entry.id === id)),
         };
         const session: ReadingSession = {
           id: runtime.id(),
@@ -70,13 +84,14 @@ export function createGenerationActions(
           startedAt: createdAt,
           completedAt: null,
           readingPosition: { sentenceId: null, scrollOffset: 0 },
-          reviewCandidateIds: [],
+          reviewCandidateIds: candidates.map((entry) => entry.id),
         };
         const changes = {
           texts: [text],
           sessions: [session],
           appSettings: {
             id: 'app' as const,
+            activeSessionId: session.id,
             model: request.model.trim(),
             cefrLevel: request.cefrLevel,
             targetDuration: request.targetDuration,

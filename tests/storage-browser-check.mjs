@@ -139,10 +139,10 @@ try {
       await import('/vibe/src/infrastructure/storage/indexeddb-learning.ts');
     const { learningMigrations } = await import('/vibe/src/infrastructure/storage/schema.ts');
     const failing = new LearningDatabase({
-      version: 3,
+      version: 4,
       migrations: {
         ...learningMigrations,
-        3(database) {
+        4(database) {
           database.deleteObjectStore('texts');
           throw new Error('Simulated migration failure');
         },
@@ -161,7 +161,7 @@ try {
   });
   assert.equal(migration.code, 'migration');
   assert.deepEqual(migration.text, saved.text);
-  console.log('PASS: native failed upgrade preserves schema v2 and stored texts');
+  console.log('PASS: native failed upgrade preserves schema v3 and stored texts');
   assert.equal(apiRequests, 0);
 } finally {
   await browser?.close();

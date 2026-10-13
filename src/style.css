@@ -186,14 +186,17 @@ blockquote {
   gap: 0.5rem;
   margin-top: 1rem;
 }
-.vocabulary-list {
+.vocabulary-list,
+.history-list,
+.backup-panel {
   padding: 0.5rem 1rem;
   border: 1px solid #d8ded7;
   border-radius: 1rem;
   background: #fff;
   margin-top: 1.5rem;
 }
-.vocabulary-list li {
+.vocabulary-list li,
+.history-list li {
   margin-block: 0.75rem;
   overflow-wrap: anywhere;
 }

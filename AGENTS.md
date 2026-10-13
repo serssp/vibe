@@ -2,7 +2,7 @@
 
 - Read `docs/requirements.md` and `docs/implementation-plan.md` before making changes.
 - Implement only the explicitly requested stage. Stop after the report; the next stage requires user acceptance.
-- Current scope: stages 3–5, explicitly authorized together by the user. Stages 0–2 have been accepted. Implement generation, vocabulary lookup, and grammar in order and report all three; no intermediate approval is needed for this authorized batch. Adaptive repetition/completion, history UI, and import/export remain stages 6–7.
+- Current scope: all remaining stages 6–8, explicitly authorized together by the user. Implement them in order and report all three without intermediate approval. Preserve honest distinctions between implementation, automated verification, deployed CI, and outstanding real-device acceptance.
 - TypeScript strict. Do not write comments in source code.
 - UI receives use cases through props and does not import Infrastructure. Application depends only on its ports and Domain. Domain does not depend on React, SDKs, or browser APIs. Create concrete adapters only in `src/app/create-services.ts`. Do not add a backend without agreement.
 - Write project Markdown documentation and AI prompts in English. Keep prompts in separate files and document their purpose and version.
