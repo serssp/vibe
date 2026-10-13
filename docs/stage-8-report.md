@@ -9,14 +9,14 @@ Status: implementation and automated verification complete. Real Android/model a
 - Preserved generation, contextual word cards, separate senses, grammar, gestures and offline caches while adding complete reading cycles, history and recovery.
 - Added daily production browser scenarios for tab closure, saved position, completion, read-only completed history, explicit rereading, local learning facts and actual backup downloads/imports.
 - Verified conservative repetition, transaction races and rollback, selected older texts after refresh, failed word actions, enlarged fonts, paged history and legacy schema updates.
-- Corrected late undo of completed reading, cross-session undo that could erase a newer mark, and chronological comparisons across UTC timestamps with/without milliseconds.
+- Corrected late undo of completed reading, cross-session undo that could erase a newer mark, rereading of previously marked words using saved contextual evidence, and chronological comparisons across UTC timestamps with/without milliseconds.
 - Updated README, architecture, data model, testing, feature documentation, AGENTS and ADR 0002. Requirements and implementation-plan text remain unchanged.
 
 ## Verification boundaries
 
 | Check                     | Evidence                                                                                                                           |
 | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check`           | Both strict typechecks, lint, formatting, architecture, 157/157 tests across 11 suites and production build pass                   |
+| `npm run check`           | Both strict typechecks, lint, formatting, architecture, 158/158 tests across 11 suites and production build pass                   |
 | `npm run test:browser`    | Four suites: settings/connection, native storage, generation/word/grammar gestures, daily reading/history/backups; mocked API only |
 | Updates and data recovery | Actual v1/v2 migration preservation, failed v2-to-v3 rollback, atomic completion/import, recovered tab/session/marks/position      |
 | Large history             | 2000-document integration fixture; 502-document browser restore with 20/40-row pagination; elapsed time printed by browser test    |

@@ -10,6 +10,7 @@ Status: implementation and automated verification complete. Real Android/model a
 - Added the Russian Complete reading button. Completion reads current records, applies pure Domain rules and writes Completed state, vocabulary and WordExposure in one IndexedDB transaction. Duplicate completion returns the existing session. Pending lookup intents must be resolved or canceled first.
 - Generation prompt v2 receives up to 30 oldest active unknown entries and returns grounded occurrence candidates. Domain verifies canonical expressions and token boundaries in actual sentences, excludes uncertain meanings and duplicated lemmas, and freezes session review candidates.
 - Effective marks respect undo facts. Confirmed untapped prior words become Learned; marked, absent and first-session words remain Unknown. Later explicit marks are preserved across interrupted sessions. Undoing an earlier session mark cannot erase a newer mark elsewhere.
+- Later explicit rereading uses existing verified contextual cards as occurrence evidence, including forms skipped by fresh generation matching. Untapped prior words can become Learned without rewriting the document or making AI requests.
 - Added local per-word mark/undo/repetition history through indexed repository queries. Completed learning cannot be undone, and late autosave cannot modify it.
 - Added ordered migration 3 for selected-session preferences and vocabulary-history indexes, preserving existing data and original localStorage connection settings.
 
@@ -17,7 +18,7 @@ Changed modules: Domain completion/occurrences, ReadingActions, generation/provi
 
 ## Verification and acceptance evidence
 
-The shared final batch passes `npm run check`: strict application/Domain types, lint, formatting, architecture, 157 unit/integration tests across 11 suites, and production build. Reading-cycle tests cover transitions, candidate certainty, first-session protection, undo, absent words, later marks, completion rollback, competing completions, late position writes, durable pending intents and explicit rereading. Actual v1/v2 upgrades and failed v2-to-v3 rollback pass.
+The shared final batch passes `npm run check`: strict application/Domain types, lint, formatting, architecture, 158 unit/integration tests across 11 suites, and production build. Reading-cycle tests cover transitions, candidate certainty, first-session protection, undo, absent words, later marks, completion rollback, competing completions, late position writes, durable pending intents and explicit rereading. Actual v1/v2 upgrades and failed v2-to-v3 rollback pass.
 
 Production mobile Chromium checks verify tab closure/reopening with marks and position, generation context, first-session Unknown, later confirmed Learned, unchanged facts after refresh, completed history, explicit rereading and pending-intent completion blocking. All API results are mocked; no real OpenAI request is made.
 

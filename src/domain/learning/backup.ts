@@ -86,7 +86,12 @@ export function validateSnapshot(value: unknown): asserts value is LearningSnaps
     );
     valid(
       session.reviewCandidateIds.includes(exposure.vocabularyEntryId) &&
-        texts.get(session.textId)!.includedVocabularyIds.includes(exposure.vocabularyEntryId),
+        (texts.get(session.textId)!.includedVocabularyIds.includes(exposure.vocabularyEntryId) ||
+          data.wordTranslations.some(
+            (card) =>
+              card.textId === session.textId &&
+              card.vocabularyEntryId === exposure.vocabularyEntryId,
+          )),
     );
     distinct(['exposure', session.id, exposure.vocabularyEntryId]);
   }

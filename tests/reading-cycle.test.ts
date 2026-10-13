@@ -1,6 +1,7 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it, vi } from 'vitest';
 import { IndexedDbLearningRepository } from '../src/infrastructure/storage/indexeddb-learning';
+import { createBackupActions } from '../src/application/use-cases/backup';
 import { createReadingActions } from '../src/application/use-cases/reading';
 import { createGenerationActions } from '../src/application/use-cases/generate-text';
 import { createWordActions } from '../src/application/use-cases/lookup-word';
@@ -326,6 +327,42 @@ describe('Adaptive reading completion', () => {
       lastMarkedAt: '2026-10-13T10:01:00.000Z',
     });
     expect((await reading.wordHistory('word-1')).interactions).toHaveLength(3);
+    await repository.close();
+  });
+
+  it('uses verified contextual cards when rereading a text generated before the word was known', async () => {
+    const { repository, generation, words, request, reading, clock } = setup();
+    const first = await generation.generate(request);
+    expect(first.text.includedVocabularyIds).toEqual([]);
+    const mark = await words.lookup({
+      ...request,
+      selection: {
+        sessionId: first.session.id,
+        textId: first.text.id,
+        sentenceId: first.text.sentences[0]!.id,
+        surfaceForm: 'ging',
+        start: 4,
+        end: 8,
+      },
+    });
+    clock(completedAt);
+    await reading.complete(first.session.id);
+    expect((await repository.getVocabularyEntry(mark.entry.id))?.status).toBe('Unknown');
+    clock('2026-10-13T10:05:00.000Z');
+    const reread = await reading.start(first.text.id);
+    expect(reread.session.reviewCandidateIds).toEqual([mark.entry.id]);
+    clock('2026-10-13T10:10:00.000Z');
+    await reading.complete(reread.session.id);
+    expect((await repository.getVocabularyEntry(mark.entry.id))?.status).toBe('Learned');
+    expect(await repository.getWordExposures(reread.session.id)).toHaveLength(1);
+    expect(await repository.getText(first.text.id)).toEqual(first.text);
+    const backups = createBackupActions(repository, {
+      id: () => 'backup',
+      now: () => '2026-10-13T12:00:00.000Z',
+    });
+    const snapshot = backups.preview(await backups.exportData());
+    await backups.restore(snapshot);
+    expect((await repository.getVocabularyEntry(mark.entry.id))?.status).toBe('Learned');
     await repository.close();
   });
 

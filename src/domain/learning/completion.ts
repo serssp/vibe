@@ -15,13 +15,14 @@ export function completeReading(
   interactions: WordInteraction[],
   timestamp: string,
   id: () => string,
+  confirmedIds: string[] = text.includedVocabularyIds,
 ): LearningWrite {
   if (session.status === 'Completed') return {};
   if (session.status !== 'InProgress' || text.id !== session.textId)
     throw new Error('Invalid reading session');
   const marks = new Set(effectiveMarks(interactions).map((item) => item.vocabularyEntryId));
   const candidates = new Set(session.reviewCandidateIds);
-  const included = new Set(text.includedVocabularyIds);
+  const included = new Set(confirmedIds);
   const repeated = vocabulary.filter((entry) => candidates.has(entry.id) && included.has(entry.id));
   return {
     sessions: [{ ...session, status: 'Completed', completedAt: timestamp }],

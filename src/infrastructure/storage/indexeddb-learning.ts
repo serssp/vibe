@@ -354,6 +354,15 @@ export class IndexedDbLearningRepository implements LearningRepository {
       const vocabulary = await requestResult<VocabularyEntry[]>(
         transaction.objectStore('vocabulary').getAll(),
       );
+      const translations = await requestResult<WordTranslation[]>(
+        transaction.objectStore('wordTranslations').getAll(),
+      );
+      const confirmed = new Set([
+        ...text.includedVocabularyIds,
+        ...translations
+          .filter((card) => card.textId === text.id)
+          .map((card) => card.vocabularyEntryId),
+      ]);
       const session: ReadingSession = {
         id: active?.id ?? sessionId,
         textId,
@@ -363,10 +372,7 @@ export class IndexedDbLearningRepository implements LearningRepository {
         readingPosition: active?.readingPosition ?? { sentenceId: null, scrollOffset: 0 },
         reviewCandidateIds: vocabulary
           .filter(
-            (word) =>
-              word.status === 'Unknown' &&
-              word.unknownCount > 0 &&
-              text.includedVocabularyIds.includes(word.id),
+            (word) => word.status === 'Unknown' && word.unknownCount > 0 && confirmed.has(word.id),
           )
           .map((word) => word.id),
       };
@@ -395,7 +401,7 @@ export class IndexedDbLearningRepository implements LearningRepository {
       );
       assertValid(session);
       if (session.status === 'Completed') return session;
-      const [text, vocabulary, interactions, lookups] = await Promise.all([
+      const [text, vocabulary, interactions, lookups, translations] = await Promise.all([
         requestResult<TextDocument>(transaction.objectStore('texts').get(session.textId)),
         requestResult<VocabularyEntry[]>(transaction.objectStore('vocabulary').getAll()),
         requestResult<WordInteraction[]>(
@@ -404,10 +410,25 @@ export class IndexedDbLearningRepository implements LearningRepository {
         requestResult<WordLookup[]>(
           transaction.objectStore('wordLookups').index('bySession').getAll(sessionId),
         ),
+        requestResult<WordTranslation[]>(transaction.objectStore('wordTranslations').getAll()),
       ]);
       if (lookups.some((lookup) => lookup.state === 'Pending'))
         throw new LearningStorageError('pending-lookups');
-      const changes = completeReading(session, text, vocabulary, interactions, timestamp, id);
+      const confirmed = [
+        ...text.includedVocabularyIds,
+        ...translations
+          .filter((card) => card.textId === text.id)
+          .map((card) => card.vocabularyEntryId),
+      ];
+      const changes = completeReading(
+        session,
+        text,
+        vocabulary,
+        interactions,
+        timestamp,
+        id,
+        confirmed,
+      );
       await this.write(transaction, changes);
       return changes.sessions![0]!;
     });
@@ -599,7 +620,17 @@ export class IndexedDbLearningRepository implements LearningRepository {
       await word(exposure.vocabularyEntryId);
       assertValid(reading.status === 'Completed' && exposure.occurredAt === reading.completedAt);
       assertValid(reading.reviewCandidateIds.includes(exposure.vocabularyEntryId));
-      assertValid(document.includedVocabularyIds.includes(exposure.vocabularyEntryId));
+      if (!document.includedVocabularyIds.includes(exposure.vocabularyEntryId)) {
+        const translations = await requestResult<WordTranslation[]>(
+          transaction.objectStore('wordTranslations').getAll(),
+        );
+        assertValid(
+          translations.some(
+            (card) =>
+              card.textId === document.id && card.vocabularyEntryId === exposure.vocabularyEntryId,
+          ),
+        );
+      }
     }
     for (const explanation of changes.explanations ?? []) {
       const document = await text(explanation.textId);

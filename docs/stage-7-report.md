@@ -16,7 +16,7 @@ Changed modules: HistoryList/BackupPanel, BackupActions, Domain snapshot validat
 
 ## Verification and acceptance evidence
 
-The shared checks pass: 157 unit/integration tests, production build, architecture and browser suites. Backup tests cover complete and empty round trips, supported UTC date variants, invalid shapes/versions/identities/references, secret-field rejection, mutated previews and rollback after a synthetic storage capacity failure. An integration fixture retains 2000 documents and sessions.
+The shared checks pass: 158 unit/integration tests, production build, architecture and browser suites. Backup tests cover complete and empty round trips, supported UTC date variants, invalid shapes/versions/identities/references, secret-field rejection, mutated previews and rollback after a synthetic storage capacity failure. An integration fixture retains 2000 documents and sessions.
 
 Production Chromium downloads an actual backup file, confirms absence of the dummy credential, rejects invalid references, cancels a valid preview, confirms restoration, and verifies recovered sessions/exposures/caches and preserved connection key. Viewing completed history does not create AI requests or change learning facts. The browser also restores 502 documents and verifies initial 20-row rendering and expansion to 40.
 

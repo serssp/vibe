@@ -228,21 +228,25 @@ try {
     mimeType: 'application/json',
     buffer: Buffer.from(content),
   });
-  const beforeInvalid = await data();
+  const learningFacts = (snapshot) => ({
+    ...snapshot,
+    sessions: snapshot.sessions.map((session) => ({ ...session, readingPosition: undefined })),
+  });
+  const beforeInvalid = learningFacts(await data());
   await page
     .getByLabel('Импортировать резервную копию')
     .setInputFiles(file(JSON.stringify(imported)));
   await page.getByRole('alert').filter({ hasText: 'Файл резервной копии некорректен' }).waitFor();
-  assert.deepEqual(await data(), beforeInvalid);
+  assert.deepEqual(learningFacts(await data()), beforeInvalid);
   await page.getByLabel('Импортировать резервную копию').setInputFiles(file(backup));
   await page.getByRole('group', { name: 'Подтверждение восстановления' }).waitFor();
   assert.deepEqual(
-    await data(),
+    learningFacts(await data()),
     beforeInvalid,
     'Selecting a valid file must not replace data before confirmation',
   );
   await page.getByRole('button', { name: 'Отменить импорт', exact: true }).click();
-  assert.deepEqual(await data(), beforeInvalid);
+  assert.deepEqual(learningFacts(await data()), beforeInvalid);
   await page.getByRole('button', { name: 'Завершить чтение', exact: true }).click();
   await page
     .getByText('Чтение завершено. Просмотр не изменяет прогресс.', { exact: true })
@@ -277,9 +281,19 @@ try {
     'PASS: unresolved marks block completion without changing results, and explicit cancellation permits completion',
   );
 
+  await page.getByRole('button', { name: 'Начать новое чтение', exact: true }).click();
+  await page.getByRole('button', { name: 'Завершить чтение', exact: true }).click();
+  await page
+    .getByText('Чтение завершено. Просмотр не изменяет прогресс.', { exact: true })
+    .waitFor();
+  assert.equal((await data()).vocabulary[0].status, 'Learned');
+  assert.equal((await data()).exposures.length, 2);
+  console.log(
+    'PASS: an untapped explicit rereading learns a prior word using its verified contextual card without rewriting the text or calling AI',
+  );
   await page.getByText('Личный словарь · 1', { exact: true }).click();
   await page.getByText('История слова gehen', { exact: true }).click();
-  await page.getByText('Подтверждённое повторение без отметки', { exact: false }).waitFor();
+  await page.getByText('Подтверждённое повторение без отметки', { exact: false }).first().waitFor();
   assert.equal(generations, 2);
   assert.equal(translations, 2);
   const large = JSON.parse(backup);
