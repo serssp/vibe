@@ -1,3 +1,4 @@
+import { settings, generation, resume, chooseSentence, library } from './browser-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -180,17 +181,19 @@ try {
       };
     });
   await page.goto('http://127.0.0.1:4173/vibe/');
-  await page.getByRole('button', { name: 'Сгенерировать текст' }).waitFor();
+  await settings(page);
   assert.deepEqual(requests, { generation: 0, word: 0, grammar: 0, connection: 0 });
   await page.getByLabel('API key', { exact: true }).fill('test-credential');
   await page.getByLabel('Модель', { exact: true }).fill('test-model');
   await page.getByRole('button', { name: 'Сохранить настройки' }).click();
-  await page.getByLabel('Уровень', { exact: true }).selectOption('A2');
-  await page.getByLabel('Время чтения', { exact: true }).selectOption('4');
+  await generation(page);
+  await page.getByRole('radio', { name: 'A2', exact: true }).check();
+  await page.getByRole('radio', { name: '4 мин', exact: true }).check();
   modes.generation = 'slow';
   slow = new Promise((resolve) => {
     release = resolve;
   });
+  await generation(page);
   await page.getByRole('button', { name: 'Сгенерировать текст' }).click();
   await page.getByRole('button', { name: 'Создаём текст…' }).waitFor();
   assert(await page.getByRole('button', { name: 'Создаём текст…' }).isDisabled());
@@ -209,22 +212,29 @@ try {
       .evaluateAll((nodes) => nodes.map((node) => node.dataset.sentenceId)),
     originalIds,
   );
-  assert.equal(await page.getByLabel('Уровень', { exact: true }).inputValue(), 'A2');
-  assert.equal(await page.getByLabel('Время чтения', { exact: true }).inputValue(), '4');
+  await generation(page);
+  assert(await page.getByRole('radio', { name: 'A2', exact: true }).isChecked());
+  assert(await page.getByRole('radio', { name: '4 мин', exact: true }).isChecked());
   assert.equal(requests.generation, 1);
   modes.generation = 'invalid';
+  await generation(page);
   await page.getByRole('button', { name: 'Сгенерировать текст' }).click();
   await page.getByRole('alert').filter({ hasText: 'некорректный ответ' }).waitFor();
-  assert(await page.getByRole('heading', { name: 'Der Spaziergang' }).isVisible());
+  await mkdir('/tmp/vibe-leselampe', { recursive: true });
+  await page.screenshot({ path: '/tmp/vibe-leselampe/generation-error.png' });
+  await resume(page);
+  assert(await page.getByRole('heading', { name: 'Der Spaziergang', exact: true }).isVisible());
   modes.generation = 'slow';
   slow = new Promise((resolve) => {
     release = resolve;
   });
+  await generation(page);
   await page.getByRole('button', { name: 'Сгенерировать текст' }).click();
   await page.getByRole('button', { name: 'Отменить генерацию' }).click();
   await page.getByRole('alert').filter({ hasText: 'отменена' }).waitFor();
   release();
   modes.generation = 'success';
+  await resume(page);
   console.log(
     'PASS: production generation, options, duplicate prevention, cancellation, invalid response, safe rendering and restoration without AI',
   );
@@ -269,6 +279,7 @@ try {
   modes.word = 'success';
   await page.getByRole('button', { name: 'Повторить перевод', exact: true }).click();
   await page.getByRole('heading', { name: 'die Bank', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Подробнее', exact: true }).click();
   assert(await page.getByText('существительное · женский род', { exact: true }).isVisible());
   assert.equal((await tally()).pending, 0);
   await page.getByRole('button', { name: 'Закрыть карточку' }).click();
@@ -282,6 +293,7 @@ try {
     .getByRole('button', { name: 'Перевести steht', exact: true })
     .tap();
   await page.getByRole('heading', { name: 'aufstehen', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Подробнее', exact: true }).click();
   assert(await page.getByText('steht … auf', { exact: true }).isVisible());
   await page.getByRole('button', { name: 'Закрыть карточку' }).click();
   console.log(
@@ -311,12 +323,16 @@ try {
   assert.equal(requests.grammar, 1);
   assert.equal(requests.word, wordsBeforeLong);
   assert.equal((await tally()).interactions, beforeLong.interactions);
-  assert.equal(await page.locator('.sentence.selected').count(), 1);
+  assert.equal(await page.locator('.sentence.grammar-selected').count(), 1);
   assert(
     await page.getByText('ging — форма Präteritum глагола gehen.', { exact: true }).isVisible(),
   );
   await page.getByRole('button', { name: 'Закрыть разбор' }).click();
-  const accessible = page.getByRole('button', { name: 'Разобрать предложение 1', exact: true });
+  await chooseSentence(page, 0);
+  const accessible = page.getByRole('button', {
+    name: 'Разобрать выбранное предложение',
+    exact: true,
+  });
   await accessible.focus();
   await page.keyboard.press('Enter');
   await page.getByRole('heading', { name: 'Разбор предложения', exact: true }).waitFor();
@@ -325,6 +341,7 @@ try {
   const beforeGrammarReload = { ...requests };
   await page.reload();
   await page.getByRole('heading', { name: 'Der Spaziergang' }).waitFor();
+  await chooseSentence(page, 0);
   await accessible.click();
   await page.getByRole('heading', { name: 'Разбор предложения', exact: true }).waitFor();
   assert.deepEqual(requests, beforeGrammarReload);
@@ -405,6 +422,7 @@ try {
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
   assert.equal(requests.word, gesturesBefore.word);
   await page.getByRole('button', { name: 'Закрыть карточку' }).click();
+  await chooseSentence(page, 0);
   await accessible.click();
   await page.getByRole('heading', { name: 'Разбор предложения', exact: true }).waitFor();
   assert.equal(requests.grammar, gesturesBefore.grammar);
@@ -413,7 +431,8 @@ try {
   const beforeGrammarFailure = await tally();
   const grammarRequestsBeforeFailure = requests.grammar;
   modes.grammar = 'network';
-  await page.getByRole('button', { name: 'Разобрать предложение 2', exact: true }).click();
+  await chooseSentence(page, 1);
+  await accessible.click();
   await page
     .locator('.analysis-panel')
     .getByRole('alert')
@@ -437,8 +456,10 @@ try {
       return original.apply(this, args);
     };
   });
+  await generation(page);
   await page.getByRole('button', { name: 'Сгенерировать текст', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'Не удалось сохранить данные' }).waitFor();
+  await resume(page);
   assert.deepEqual(
     await page
       .locator('[data-sentence-id]')
@@ -506,6 +527,16 @@ try {
   console.log(
     'PASS: cached translation and grammar work without network; keyboard word lookup, no raw credential output or page errors',
   );
+  const beforeFilter = { ...requests };
+  await page.getByRole('button', { name: 'Закрыть карточку', exact: true }).click();
+  await library(page);
+  await page.getByRole('button', { name: 'Словарь', exact: true }).click();
+  await page.getByLabel('Поиск в словаре').fill('Bank');
+  assert.equal(await page.locator('.vocabulary-row').count(), 2);
+  assert(await page.getByText('скамейка', { exact: true }).isVisible());
+  assert(await page.getByText('банк, финансовое учреждение', { exact: true }).isVisible());
+  assert.deepEqual(requests, beforeFilter);
+  console.log('PASS: local vocabulary search preserves distinct senses with no AI requests');
 } finally {
   await browser?.close();
   server.kill();

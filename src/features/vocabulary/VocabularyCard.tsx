@@ -19,12 +19,16 @@ const genders = { masculine: 'мужской род', feminine: 'женский 
 
 export function VocabularyCard({
   sentence,
+  surface,
+  expanded,
   result,
   busy,
   onUndo,
   onClose,
 }: {
   sentence: string;
+  surface: string;
+  expanded: boolean;
   result?: WordLookupResult;
   busy: boolean;
   onUndo(): void;
@@ -37,6 +41,9 @@ export function VocabularyCard({
   }, [result?.lookup.id]);
   return (
     <section className="learning-card" aria-labelledby="word-card-heading">
+      <p className="tapped-form" lang="de">
+        {surface}
+      </p>
       <h2 id="word-card-heading" ref={heading} tabIndex={-1}>
         {card ? (
           <span lang="de">
@@ -47,21 +54,21 @@ export function VocabularyCard({
           'Перевод слова'
         )}
       </h2>
-      <blockquote lang="de">{sentence}</blockquote>
       {card && (
         <>
           <p className="word-meaning">{card.meaningRu}</p>
-          <p>
-            {parts[card.partOfSpeech]}
-            {card.gender ? ` · ${genders[card.gender]}` : ''}
-          </p>
-          <p lang="de">{card.expression}</p>
+          {expanded && (
+            <>
+              <blockquote lang="de">{sentence}</blockquote>
+              <p>
+                {parts[card.partOfSpeech]}
+                {card.gender ? ` · ${genders[card.gender]}` : ''}
+              </p>
+              <p lang="de">{card.expression}</p>
+            </>
+          )}
           <p>{card.formRu}</p>
-          <p className="hint">
-            {result?.cached
-              ? 'Перевод из сохранённой карточки.'
-              : 'Слово добавлено в личный словарь.'}
-          </p>
+          <p className="hint">Отмечено как незнакомое.</p>
         </>
       )}
       <div className="actions">
@@ -70,8 +77,8 @@ export function VocabularyCard({
             Отменить отметку
           </button>
         )}
-        <button className="secondary" disabled={busy} onClick={onClose}>
-          Закрыть карточку
+        <button className="secondary" aria-label="Закрыть карточку" onClick={onClose}>
+          Закрыть
         </button>
       </div>
     </section>

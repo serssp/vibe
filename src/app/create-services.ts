@@ -1,3 +1,4 @@
+import { createReaderPreferences } from '../application/use-cases/reader-preferences';
 import { createSettingsActions } from '../application/use-cases/settings';
 import { OpenAIConnectionProvider } from '../infrastructure/ai/openai-connection';
 import { LocalSettingsRepository } from '../infrastructure/storage/local-settings';
@@ -13,8 +14,10 @@ export function createServices() {
   const provider = new OpenAIConnectionProvider();
   const learning = new IndexedDbLearningRepository();
   const runtime = new BrowserRuntime();
+  const localSettings = new LocalSettingsRepository();
   return {
-    settings: createSettingsActions(provider, new LocalSettingsRepository()),
+    readerPreferences: createReaderPreferences(localSettings),
+    settings: createSettingsActions(provider, localSettings),
     learning,
     readingActions: createReadingActions(learning, runtime),
     backups: createBackupActions(learning, runtime),

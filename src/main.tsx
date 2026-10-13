@@ -11,6 +11,7 @@ createRoot(root).render(
   <StrictMode>
     <App
       settings={services.settings}
+      readerPreferences={services.readerPreferences}
       generation={services.generation}
       words={services.words}
       grammar={services.grammar}

@@ -1,3 +1,4 @@
+import { settings, generation, library, resume } from './browser-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -98,10 +99,12 @@ try {
   });
   let page = await context.newPage();
   await page.goto(site);
+  await settings(page);
   await page.getByLabel('API key', { exact: true }).fill('test-credential');
   await page.getByLabel('Модель', { exact: true }).fill('test-model');
   await page.getByRole('button', { name: 'Сохранить настройки' }).click();
   const generate = async (title) => {
+    await generation(page);
     await page.getByRole('button', { name: 'Сгенерировать текст', exact: true }).click();
     await page.getByRole('heading', { name: title, exact: true }).waitFor();
   };
@@ -139,13 +142,17 @@ try {
   await page.close();
   page = await context.newPage();
   await page.goto(site);
+  await resume(page);
   await page.getByRole('heading', { name: 'Lesetag 1', exact: true }).waitFor();
   await delay(100);
   const anchorTop = await page
     .locator(`[data-sentence-id="${position.sentenceId}"]`)
     .evaluate((node) => node.getBoundingClientRect().top);
+  const headerHeight = await page
+    .locator('.reader-header')
+    .evaluate((node) => node.getBoundingClientRect().bottom);
   assert(
-    Math.abs(anchorTop + position.scrollOffset) < 8,
+    Math.abs(anchorTop + position.scrollOffset - headerHeight) < 8,
     `Position was not restored: ${anchorTop}`,
   );
   assert.equal((await data()).interactions.length, 1);
@@ -179,7 +186,7 @@ try {
     'PASS: first-session words remain Unknown; a confirmed untapped repetition becomes Learned exactly once',
   );
 
-  await page.getByText('История текстов · 2', { exact: true }).click();
+  await library(page);
   await page
     .locator('.history-list li')
     .filter({ hasText: 'Lesetag 1' })
@@ -204,6 +211,7 @@ try {
     'PASS: completed history is read-only, selected history survives refresh, and an explicit new session can mark a Learned word Unknown',
   );
 
+  await settings(page);
   await page.getByText('Резервная копия', { exact: true }).click();
   const downloadPromise = page.waitForEvent('download');
   await page.getByRole('button', { name: 'Экспортировать данные', exact: true }).click();
@@ -247,16 +255,19 @@ try {
   );
   await page.getByRole('button', { name: 'Отменить импорт', exact: true }).click();
   assert.deepEqual(learningFacts(await data()), beforeInvalid);
+  await resume(page);
   await page.getByRole('button', { name: 'Завершить чтение', exact: true }).click();
   await page
     .getByText('Чтение завершено. Просмотр не изменяет прогресс.', { exact: true })
     .waitFor();
+  await settings(page);
+  await page.getByText('Резервная копия', { exact: true }).click();
   await page.getByLabel('Импортировать резервную копию').setInputFiles(file(backup));
   await page.getByRole('button', { name: 'Заменить данные и восстановить', exact: true }).click();
   await page.getByText('Данные восстановлены.', { exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Завершить чтение', exact: true }).waitFor();
   assert.deepEqual((await data()).exposures, envelope.data.exposures);
   assert.equal(await page.getByLabel('API key', { exact: true }).inputValue(), 'test-credential');
+  await resume(page);
   console.log(
     'PASS: downloaded backup excludes credentials; invalid import and cancellation preserve data; confirmed restore recovers sessions, caches and facts',
   );
@@ -291,9 +302,16 @@ try {
   console.log(
     'PASS: an untapped explicit rereading learns a prior word using its verified contextual card without rewriting the text or calling AI',
   );
-  await page.getByText('Личный словарь · 1', { exact: true }).click();
+  await library(page);
+  await page.getByRole('button', { name: 'Словарь', exact: true }).click();
   await page.getByText('История слова gehen', { exact: true }).click();
   await page.getByText('Подтверждённое повторение без отметки', { exact: false }).first().waitFor();
+  await page.getByRole('button', { name: 'Изучаю', exact: true }).click();
+  assert.equal(await page.locator('.vocabulary-row').count(), 0);
+  await page.getByRole('button', { name: 'Изучено', exact: true }).click();
+  assert.equal(await page.locator('.vocabulary-row').count(), 1);
+  await page.getByLabel('Поиск в словаре').fill('идти');
+  assert.equal(await page.locator('.vocabulary-row').count(), 1);
   assert.equal(generations, 2);
   assert.equal(translations, 2);
   const large = JSON.parse(backup);
@@ -320,11 +338,13 @@ try {
       reviewCandidateIds: [],
     });
   }
+  await settings(page);
+  await page.getByText('Резервная копия', { exact: true }).click();
   const started = performance.now();
   await page.getByLabel('Импортировать резервную копию').setInputFiles(file(JSON.stringify(large)));
   await page.getByRole('button', { name: 'Заменить данные и восстановить', exact: true }).click();
   await page.getByText('Данные восстановлены.', { exact: true }).waitFor();
-  await page.getByText('История текстов · 502', { exact: true }).click();
+  await library(page);
   assert.equal(await page.locator('.history-list li').count(), 20);
   await page.getByRole('button', { name: 'Показать ещё', exact: true }).click();
   assert.equal(await page.locator('.history-list li').count(), 40);

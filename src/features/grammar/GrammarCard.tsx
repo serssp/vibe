@@ -4,12 +4,13 @@ import { useEffect, useRef } from 'react';
 export function GrammarCard({
   sentence,
   result,
-  busy,
+  expanded,
   onClose,
 }: {
   sentence: string;
   result?: GrammarResult;
   busy: boolean;
+  expanded: boolean;
   onClose(): void;
 }) {
   const heading = useRef<HTMLHeadingElement>(null);
@@ -22,23 +23,26 @@ export function GrammarCard({
         Разбор предложения
       </h2>
       <blockquote lang="de">{sentence}</blockquote>
-      {result?.explanation.explanation.rules.map((rule, index) => (
-        <div className="grammar-rule" key={index}>
-          <h3>{rule.titleRu}</h3>
-          <p>{rule.explanationRu}</p>
-          <p lang="de">{rule.fragments.join(' · ')}</p>
-          {rule.examples.map((example, index) => (
-            <p key={index}>
-              <span lang="de">{example.de}</span>
-              <br />
-              {example.ru}
-            </p>
-          ))}
-        </div>
-      ))}
+      {result?.explanation.explanation.rules
+        .slice(0, expanded ? undefined : 1)
+        .map((rule, index) => (
+          <div className="grammar-rule" key={index}>
+            <h3>{rule.titleRu}</h3>
+            <p>{rule.explanationRu}</p>
+            <p lang="de">{rule.fragments.join(' · ')}</p>
+            {expanded &&
+              rule.examples.map((example, index) => (
+                <p key={index}>
+                  <span lang="de">{example.de}</span>
+                  <br />
+                  {example.ru}
+                </p>
+              ))}
+          </div>
+        ))}
       {result?.cached && <p className="hint">Сохранённый разбор.</p>}
-      <button className="secondary" disabled={busy} onClick={onClose}>
-        Закрыть разбор
+      <button className="secondary" aria-label="Закрыть разбор" onClick={onClose}>
+        Закрыть
       </button>
     </section>
   );

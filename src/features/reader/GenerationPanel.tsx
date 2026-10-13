@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import type { CefrLevel, TargetDuration } from '../../domain/reading/models';
 
 export function GenerationPanel({
@@ -8,6 +7,7 @@ export function GenerationPanel({
   disabled,
   onGenerate,
   onCancel,
+  onChange,
 }: {
   level: CefrLevel;
   duration: TargetDuration;
@@ -15,44 +15,49 @@ export function GenerationPanel({
   disabled: boolean;
   onGenerate(level: CefrLevel, duration: TargetDuration): void;
   onCancel(): void;
+  onChange(level: CefrLevel, duration: TargetDuration): void;
 }) {
-  const [cefrLevel, setLevel] = useState(level);
-  const [targetDuration, setDuration] = useState(duration);
   return (
     <section aria-labelledby="generation-heading">
       <h2 id="generation-heading">Новый текст</h2>
       <div className="generation-options">
-        <label>
-          Уровень
-          <select
-            aria-label="Уровень"
-            value={cefrLevel}
-            disabled={disabled}
-            onChange={(event) => setLevel(event.target.value as CefrLevel)}
-          >
-            {['A1', 'A2', 'B1'].map((level) => (
-              <option key={level}>{level}</option>
+        <fieldset disabled={disabled}>
+          <legend>Уровень</legend>
+          <div className="segments">
+            {(['A1', 'A2', 'B1'] as const).map((choice) => (
+              <label key={choice}>
+                <input
+                  type="radio"
+                  name="level"
+                  value={choice}
+                  checked={level === choice}
+                  onChange={() => onChange(choice, duration)}
+                />
+                <span>{choice}</span>
+              </label>
             ))}
-          </select>
-        </label>
-        <label>
-          Время чтения
-          <select
-            aria-label="Время чтения"
-            value={targetDuration}
-            disabled={disabled}
-            onChange={(event) => setDuration(Number(event.target.value) as TargetDuration)}
-          >
-            {[3, 4, 5].map((duration) => (
-              <option key={duration} value={duration}>
-                {duration} мин
-              </option>
+          </div>
+        </fieldset>
+        <fieldset disabled={disabled}>
+          <legend>Время чтения</legend>
+          <div className="segments">
+            {([3, 4, 5] as const).map((choice) => (
+              <label key={choice}>
+                <input
+                  type="radio"
+                  name="duration"
+                  value={choice}
+                  checked={duration === choice}
+                  onChange={() => onChange(level, choice)}
+                />
+                <span>{choice} мин</span>
+              </label>
             ))}
-          </select>
-        </label>
+          </div>
+        </fieldset>
       </div>
       <div className="actions">
-        <button disabled={disabled} onClick={() => onGenerate(cefrLevel, targetDuration)}>
+        <button disabled={disabled} onClick={() => onGenerate(level, duration)}>
           {busy ? 'Создаём текст…' : 'Сгенерировать текст'}
         </button>
         {busy && (

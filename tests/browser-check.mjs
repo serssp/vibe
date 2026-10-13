@@ -1,3 +1,4 @@
+import { settings } from './browser-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -72,7 +73,7 @@ try {
   });
   await page.goto('http://127.0.0.1:4173/vibe/');
   const check = page.getByRole('button', { name: 'Проверить подключение' });
-  await page.getByRole('heading', { name: 'Проверка подключения' }).waitFor();
+  await settings(page);
   assert.equal(requests, 0);
   assert(await check.isDisabled());
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));

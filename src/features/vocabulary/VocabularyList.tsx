@@ -11,24 +11,68 @@ export function VocabularyList({
   loadHistory: ReadingActions['wordHistory'];
 }) {
   const [visible, setVisible] = useState(20);
-  const active = entries.filter((entry) => entry.unknownCount > 0);
+  const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<'all' | 'Unknown' | 'Learned'>('all');
+  const active = entries.filter((entry) => entry.unknownCount > 0 || entry.status === 'Learned');
+  const filtered = active.filter(
+    (entry) =>
+      (status === 'all' || entry.status === status) &&
+      `${entry.article ?? ''} ${entry.lemma} ${entry.meaningRu}`
+        .toLocaleLowerCase()
+        .includes(query.trim().toLocaleLowerCase()),
+  );
   return (
-    <details className="vocabulary-list">
-      <summary>Личный словарь · {active.length}</summary>
-      {active.length ? (
+    <div className="vocabulary-list">
+      <h2>Слова · {filtered.length}</h2>
+      {active.length > 0 && (
+        <>
+          <label className="search-label">
+            Поиск в словаре
+            <input
+              type="search"
+              value={query}
+              placeholder="Слово или перевод"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setVisible(20);
+              }}
+            />
+          </label>
+          <div className="filters" aria-label="Статус слов">
+            {(
+              [
+                ['all', 'Все'],
+                ['Unknown', 'Изучаю'],
+                ['Learned', 'Изучено'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                className="secondary"
+                key={value}
+                aria-pressed={status === value}
+                onClick={() => {
+                  setStatus(value);
+                  setVisible(20);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {filtered.length ? (
         <ul>
-          {active.slice(0, visible).map((entry) => (
-            <li key={entry.id}>
-              <strong lang="de">
-                {entry.article ? `${entry.article} ` : ''}
-                {entry.lemma}
-              </strong>{' '}
-              — {entry.meaningRu}
-              <span className="hint">
-                {' '}
-                · {entry.status === 'Unknown' ? 'Неизвестно' : 'Изучено'} · отметок:{' '}
-                {entry.unknownCount}
-              </span>
+          {filtered.slice(0, visible).map((entry) => (
+            <li className="vocabulary-row" key={entry.id}>
+              <div className="story-meta">
+                <strong lang="de">
+                  {entry.article ? `${entry.article} ` : ''}
+                  {entry.lemma}
+                </strong>
+                <span className="badge">{entry.status === 'Unknown' ? 'Изучаю' : 'Изучено'}</span>
+              </div>
+              <p>{entry.meaningRu}</p>
               <WordHistory
                 key={`${entry.id}:${entry.unknownCount}:${entry.exposureCount}:${entry.status}`}
                 entry={entry}
@@ -38,14 +82,32 @@ export function VocabularyList({
           ))}
         </ul>
       ) : (
-        <p>Здесь появятся отмеченные слова.</p>
+        <div className="empty-state">
+          <p>
+            {active.length
+              ? 'Ничего не найдено.'
+              : 'Нажмите незнакомое слово во время чтения — оно появится здесь.'}
+          </p>
+          {active.length > 0 && (
+            <button
+              className="secondary"
+              onClick={() => {
+                setQuery('');
+                setStatus('all');
+                setVisible(20);
+              }}
+            >
+              Сбросить фильтры
+            </button>
+          )}
+        </div>
       )}
-      {visible < active.length && (
+      {visible < filtered.length && (
         <button className="secondary" onClick={() => setVisible((count) => count + 20)}>
           Показать ещё слова
         </button>
       )}
-    </details>
+    </div>
   );
 }
 

@@ -75,9 +75,6 @@ export function SettingsPage({ settings }: { settings: SettingsActions }) {
 
   return (
     <div className="settings-page">
-      <p className="eyebrow">VIBE · НЕМЕЦКИЙ ЯЗЫК</p>
-      <h2>Проверка подключения</h2>
-      <p>Сохраните ключ и отправьте короткий тестовый запрос к OpenAI.</p>
       <section aria-labelledby="settings-heading">
         <h2 id="settings-heading">Настройки OpenAI</h2>
         <form onSubmit={persist}>

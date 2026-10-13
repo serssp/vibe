@@ -1,7 +1,7 @@
 # Leselampe-Inspired Design and UX Plan
 
 **Date:** 2026-10-13
-**Status:** Proposed implementation plan; no application changes included in this commit.
+**Status:** Implementation authorized by the user on 2026-10-13. D1–D5 implemented; D6 verification recorded below.
 **Scope:** Bring Vibe's existing mobile reading experience and visual design closer to [Leselampe](https://github.com/clbagrat/leselampe).
 **Related documents:** [Requirements](requirements.md), [Architecture](architecture.md), [Testing](testing.md).
 
@@ -196,7 +196,7 @@ Do not change automatic unknown-word marking into an explicit add/ignore workflo
 
 ## 5. Delivery rules
 
-Implement D1 through D6 in order, only within the subsequently authorized scope and the repository's execution rules. This planning commit does not authorize application implementation.
+Implement D1 through D6 in order, only within the subsequently authorized scope and the repository's execution rules. The original planning commit did not authorize implementation; the subsequent user instruction “Исполняй” authorized D1–D6.
 
 For each implemented stage, provide a concise report with changed components, screenshots where relevant, checks and results, remaining limitations, and the next dependency. Keep documentation in English and UI labels in Russian.
 
@@ -207,3 +207,35 @@ Prefer presentation changes and small local UI preferences. No learning-database
 Vibe is ready for design acceptance when the library-first journey, focused reader, contextual bottom sheets, vocabulary screen, and settings screen feel consistent with Leselampe's reading-oriented design, while all existing Vibe learning behaviour remains intact.
 
 The deliverable is a cohesive redesign of existing functionality, with the small usability improvements specified above.
+
+## 7. Implementation report — 2026-10-13
+
+The authorized update implements the library-first workflow and existing learning actions. No learning migration, AI contract/prompt change, backend, additional generation option or excluded feature was introduced.
+
+| Stage | Delivered components and behavior                                                                                                                                                                                     | Evidence and dependency                                                                                                             |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| D1    | Paper/ink/coral tokens, system serif and sans stacks, shared controls, focus, touch targets, reduced motion and safe areas in `src/style.css`.                                                                        | Mobile composition and overflow/text-scaling checks; foundation used by D2.                                                         |
+| D2    | Hash shell, separate destinations, persistent library UI state, Continue, story cards and a generation modal with native radio choices. Connection and backups are in Settings.                                       | Existing generation/restore/failure/cancellation workflows adapted to navigation; D3 uses the focused Reader destination.           |
+| D3    | Continuous sentences with stable IDs, reliable stored paragraph boundaries, selected tokens/sentences, one accessible sentence selector, help, sticky reader controls, position indicator and appearance preferences. | Stable-ID and sentence-position checks across navigation/refresh/typography; no learning-schema changes. D4 adds contextual sheets. |
+| D4    | Shared compact/expanded sheet, contextual word hierarchy, expanded grammar, close/handle/Escape controls, actual-height spacing, request abort/epoch isolation and secondary diagnostics.                             | Mock delayed-response, pending-recovery, cache, undo and overlap checks; D5 reuses the visual foundation.                           |
+| D5    | Local title/status filters and vocabulary search/status rows, secondary word history, Connection/Appearance/Backup settings groups and consistent empty/error/loading states.                                         | Local-only filtering, Learned visibility, existing backup validation/confirmation/rollback and pagination scenarios.                |
+| D6    | Required checks, adapted regression scripts, focused design browser suite, mobile captures and architecture/testing documentation.                                                                                    | Local/CI/published results and remaining device limits are recorded below.                                                          |
+
+### Verification and limitations
+
+Automated checks use dummy credentials and mocked AI transport. Real OpenAI requests and real Android Chrome checks were not performed. Device acceptance remains outstanding for native browser Back, touch/keyboard behavior, toolbar resizing, zoom and font scaling. System font stacks intentionally use installed fonts; composition can vary by platform.
+
+The visual reference was inspected in [Leselampe's stylesheet](https://github.com/clbagrat/leselampe/blob/main/styles.css). The update follows its paper/ink palette, serif reading surface, compact toolbar and rounded floating cards, with a darker coral action colour for readable contrast and labelled navigation.
+
+Local verification: `npm run check` passed with 160 tests, strict application/Domain typechecks, lint, formatting, architecture checks and production build. `npm run test:browser` passed all five scripts, including mock AI, native IndexedDB, existing learning/backup regressions and the design suite. The design suite checks all four phone widths and 200% root text, selected-word overlap, panel navigation, delayed-response isolation, appearance/position restoration and direct links to a different saved text. Deployment verification is recorded after publication.
+
+### Mobile captures
+
+These 390×844 Chromium captures contain synthetic records and mocked responses:
+
+- D1/D3: [Reader](screenshots/leselampe/reader.png).
+- D2: [Empty library](screenshots/leselampe/library-empty.png), [Library](screenshots/leselampe/library.png), [Generation](screenshots/leselampe/generation.png), [Loading](screenshots/leselampe/generation-loading.png), [Error](screenshots/leselampe/generation-error.png).
+- D4: [Compact word](screenshots/leselampe/word-compact.png), [Expanded word](screenshots/leselampe/word-expanded.png), [Loading word](screenshots/leselampe/word-loading.png), [Expanded grammar](screenshots/leselampe/grammar-expanded.png).
+- D5: [Vocabulary](screenshots/leselampe/vocabulary.png), [Settings](screenshots/leselampe/settings-appearance.png).
+
+Further acceptance depends on real Android Chrome checks; no further implementation stage or learning-schema change is required by this update.

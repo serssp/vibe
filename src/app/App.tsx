@@ -1,3 +1,8 @@
+import { FloatingSheet } from './FloatingSheet';
+import { Modal } from './Modal';
+import type { ReaderPreferences } from '../application/use-cases/reader-preferences';
+import { ReaderAppearance } from '../features/settings/ReaderAppearance';
+import type { ReaderAppearance as Appearance } from '../domain/settings/reader-appearance';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReadingActions } from '../application/use-cases/reading';
 import type { BackupActions } from '../application/use-cases/backup';
@@ -22,10 +27,12 @@ import { Reader } from '../features/reader/Reader';
 import { VocabularyCard } from '../features/vocabulary/VocabularyCard';
 import { VocabularyList } from '../features/vocabulary/VocabularyList';
 import { GrammarCard } from '../features/grammar/GrammarCard';
+import { useNavigation, navigate, dismissPanel } from './navigation';
 import { actionMessage } from '../application/errors';
 
 export function App({
   settings,
+  readerPreferences,
   generation,
   words,
   grammar,
@@ -33,12 +40,23 @@ export function App({
   backups,
 }: {
   settings: SettingsActions;
+  readerPreferences: ReaderPreferences;
   generation: GenerationActions;
   words: WordActions;
   grammar: GrammarActions;
   readingActions: ReadingActions;
   backups: BackupActions;
 }) {
+  const [appearance, setAppearance] = useState(() => readerPreferences.load());
+  const [expanded, setExpanded] = useState(false);
+  const analysisEpoch = useRef(0);
+  const analysisController = useRef<AbortController | null>(null);
+  const route = useNavigation();
+  const libraryScroll = useRef(0);
+  const [generationChoice, setGenerationChoice] = useState<{
+    level: AppSettings['cefrLevel'];
+    duration: AppSettings['targetDuration'];
+  }>();
   const [reading, setReading] = useState<{ text: TextDocument; session: ReadingSession }>();
   const [preferences, setPreferences] = useState<AppSettings>();
   const [history, setHistory] = useState<Awaited<ReturnType<ReadingActions['history']>>>([]);
@@ -61,12 +79,29 @@ export function App({
   const active = useRef<AbortController | null>(null);
   const focusReturn = useRef<HTMLElement | null>(null);
   const sessionId = reading?.session.id;
+  const currentSession = useRef(sessionId);
+
+  useEffect(() => {
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => {
+      window.history.scrollRestoration = previous;
+    };
+  }, []);
 
   useEffect(() => {
     let alive = true;
     void Promise.all([generation.restore(), generation.preferences(), readingActions.history()])
       .then(([reading, preferences, history]) => {
         if (alive) {
+          if (window.location.hash.includes('?panel=analysis')) {
+            window.history.replaceState(
+              { vibePanel: false, vibeReader: false },
+              '',
+              window.location.hash.split('?')[0],
+            );
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }
           setReading(reading);
           setHistory(history);
           setPreferences(preferences);
@@ -87,6 +122,7 @@ export function App({
 
   useEffect(() => {
     let alive = true;
+    currentSession.current = sessionId;
     void Promise.all([
       words.vocabulary(),
       sessionId ? words.pending(sessionId) : Promise.resolve([]),
@@ -105,13 +141,86 @@ export function App({
     };
   }, [words, sessionId]);
 
+  useEffect(() => {
+    if (route.screen === 'library') window.scrollTo(0, libraryScroll.current);
+    else if (route.screen !== 'reader') window.scrollTo(0, 0);
+  }, [route.screen]);
+
+  useEffect(() => {
+    const changed = () => {
+      if (
+        !window.location.hash.endsWith('?panel=generation') &&
+        active.current &&
+        !analysisController.current
+      )
+        active.current.abort();
+      if (window.location.hash.endsWith('?panel=analysis')) return;
+      analysisEpoch.current++;
+      analysisController.current?.abort();
+      setWordTarget(undefined);
+      setGrammarTarget(undefined);
+      setWordResult(undefined);
+      setGrammarResult(undefined);
+      setAnalysisError('');
+      setFailedLookupId(undefined);
+      if (focusReturn.current?.isConnected) focusReturn.current.focus({ preventScroll: true });
+    };
+    window.addEventListener('popstate', changed);
+    window.addEventListener('hashchange', changed);
+    return () => {
+      window.removeEventListener('popstate', changed);
+      window.removeEventListener('hashchange', changed);
+    };
+  }, []);
+
+  function changeAppearance(value: Appearance) {
+    setAppearance(value);
+    try {
+      readerPreferences.save(value);
+    } catch {
+      setError('Вид текста изменён, но не сохранён. Проверьте доступ к локальному хранилищу.');
+    }
+  }
+
+  useEffect(() => {
+    if (!ready || route.screen !== 'reader') return;
+    if (!route.textId) {
+      navigate('library', undefined, undefined, true);
+      return;
+    }
+    if (reading?.text.id === route.textId && reading.session.status !== 'New') return;
+    let alive = true;
+    void readingActions
+      .resume(route.textId)
+      .then(async (result) => {
+        if (result.session.status === 'New') result = await readingActions.start(result.text.id);
+        if (alive) setReading(result);
+      })
+      .catch((error: unknown) => {
+        if (alive) {
+          setError(actionMessage(error));
+          navigate('library', undefined, undefined, true);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [
+    ready,
+    route.screen,
+    route.textId,
+    reading?.text.id,
+    reading?.session.status,
+    readingActions,
+  ]);
+
   async function refreshWords() {
     const [entries, pending] = await Promise.all([
       words.vocabulary(),
       reading ? words.pending(reading.session.id) : Promise.resolve([]),
     ]);
     setVocabulary(entries);
-    setPending(pending);
+    if (currentSession.current === reading?.session.id) setPending(pending);
   }
 
   async function generate(
@@ -132,7 +241,12 @@ export function App({
         targetDuration,
         signal: controller.signal,
       });
+      if (controller.signal.aborted) {
+        setHistory(await readingActions.history());
+        return;
+      }
       setReading(result);
+      navigate('reader', result.text.id, undefined, true);
       setHistory(await readingActions.history());
       setTotalTokens(result.totalTokens);
       closeAnalysis();
@@ -145,12 +259,16 @@ export function App({
   }
 
   function closeAnalysis() {
+    analysisEpoch.current++;
+    analysisController.current?.abort();
+    setExpanded(false);
     setWordTarget(undefined);
     setGrammarTarget(undefined);
     setAnalysisError('');
     setFailedLookupId(undefined);
     setWordResult(undefined);
     setGrammarResult(undefined);
+    if (route.panel === 'analysis') dismissPanel(route.screen, route.textId);
     if (focusReturn.current?.isConnected) focusReturn.current.focus({ preventScroll: true });
   }
 
@@ -165,8 +283,12 @@ export function App({
   async function lookup(selection: WordSelection, lookupId?: string) {
     if (active.current || localActive.current || undoBusy) return;
     rememberFocus();
+    if (route.panel !== 'analysis') navigate('reader', reading?.text.id, 'analysis');
     const controller = new AbortController();
     active.current = controller;
+    analysisController.current = controller;
+    const epoch = ++analysisEpoch.current;
+    setExpanded(false);
     setAnalysisBusy(true);
     setAnalysisError('');
     setFailedLookupId(lookupId);
@@ -181,18 +303,23 @@ export function App({
         lookupId,
         signal: controller.signal,
       });
-      setWordResult(result);
-      setFailedLookupId(undefined);
+      if (epoch === analysisEpoch.current) {
+        setWordResult(result);
+        setFailedLookupId(undefined);
+      }
     } catch (error) {
-      setAnalysisError(actionMessage(error));
-      if (error instanceof WordLookupError) setFailedLookupId(error.lookupId);
+      if (epoch === analysisEpoch.current) {
+        setAnalysisError(actionMessage(error));
+        if (error instanceof WordLookupError) setFailedLookupId(error.lookupId);
+      }
     } finally {
       try {
         await refreshWords();
       } catch (error) {
-        setAnalysisError(actionMessage(error));
+        if (epoch === analysisEpoch.current) setAnalysisError(actionMessage(error));
       }
-      active.current = null;
+      if (active.current === controller) active.current = null;
+      if (analysisController.current === controller) analysisController.current = null;
       setAnalysisBusy(false);
     }
   }
@@ -200,8 +327,12 @@ export function App({
   async function explain(sentenceId: string) {
     if (active.current || localActive.current || undoBusy || !reading) return;
     rememberFocus();
+    if (route.panel !== 'analysis') navigate('reader', reading?.text.id, 'analysis');
     const controller = new AbortController();
     active.current = controller;
+    analysisController.current = controller;
+    const epoch = ++analysisEpoch.current;
+    setExpanded(false);
     setAnalysisBusy(true);
     setAnalysisError('');
     setFailedLookupId(undefined);
@@ -210,19 +341,19 @@ export function App({
     setWordResult(undefined);
     setGrammarResult(undefined);
     try {
-      setGrammarResult(
-        await grammar.explain({
-          ...settings.load(),
-          textId: reading.text.id,
-          sentenceId,
-          cefrLevel: reading.text.cefrLevel,
-          signal: controller.signal,
-        }),
-      );
+      const result = await grammar.explain({
+        ...settings.load(),
+        textId: reading.text.id,
+        sentenceId,
+        cefrLevel: reading.text.cefrLevel,
+        signal: controller.signal,
+      });
+      if (epoch === analysisEpoch.current) setGrammarResult(result);
     } catch (error) {
-      setAnalysisError(actionMessage(error));
+      if (epoch === analysisEpoch.current) setAnalysisError(actionMessage(error));
     } finally {
-      active.current = null;
+      if (active.current === controller) active.current = null;
+      if (analysisController.current === controller) analysisController.current = null;
       setAnalysisBusy(false);
     }
   }
@@ -266,6 +397,8 @@ export function App({
       if (result.session.status === 'New')
         result.session = (await readingActions.start(textId)).session;
       setReading(result);
+      if (route.screen === 'library') libraryScroll.current = window.scrollY;
+      navigate('reader', result.text.id, undefined, route.screen === 'reader');
       setHistory(await readingActions.history());
     });
   }
@@ -308,6 +441,11 @@ export function App({
   const savePosition = useCallback(
     (position: ReadingSession['readingPosition']) => {
       if (!sessionId) return;
+      setReading((current) =>
+        current?.session.id === sessionId && current.session.status !== 'Completed'
+          ? { ...current, session: { ...current.session, readingPosition: position } }
+          : current,
+      );
       void readingActions
         .savePosition(sessionId, position)
         .catch((error: unknown) => setError(actionMessage(error)));
@@ -315,39 +453,137 @@ export function App({
     [readingActions, sessionId],
   );
 
+  const continuation =
+    reading && reading.session.status !== 'Completed'
+      ? reading
+      : history
+          .flatMap(({ text, sessions }) =>
+            sessions
+              .filter((session) => session.status !== 'Completed')
+              .map((session) => ({ text, session })),
+          )
+          .sort(
+            (a, b) =>
+              Date.parse(b.session.startedAt ?? b.text.createdAt) -
+              Date.parse(a.session.startedAt ?? a.text.createdAt),
+          )[0];
   const disabled = busy || analysisBusy || undoBusy || localBusy || !ready;
   const sentenceId = wordTarget?.sentenceId ?? grammarTarget;
   const sentence = reading?.text.sentences.find((item) => item.id === sentenceId)?.content ?? '';
   const analysisTokens = wordResult?.totalTokens ?? grammarResult?.totalTokens;
   return (
     <main>
-      <p className="eyebrow">VIBE · НЕМЕЦКИЙ ЯЗЫК</p>
-      <h1>Немецкий каждый день</h1>
-      <p>Читайте немецкие истории в своём темпе.</p>
-      {ready ? (
-        <GenerationPanel
-          level={preferences?.cefrLevel ?? 'A1'}
-          duration={preferences?.targetDuration ?? 3}
-          busy={busy}
-          disabled={disabled}
-          onGenerate={(level, duration) => void generate(level, duration)}
-          onCancel={() => active.current?.abort()}
-        />
-      ) : (
-        <p role="status">Открываем сохранённый текст…</p>
+      <header className={`app-header ${route.screen === 'reader' ? 'reader-header' : ''}`}>
+        {route.screen === 'reader' ? (
+          <>
+            <button
+              className="secondary"
+              onClick={() => {
+                if (route.panel) dismissPanel(route.screen, route.textId);
+                else if (window.history.state?.vibeReader) window.history.back();
+                else navigate('library', undefined, undefined, true);
+              }}
+            >
+              ← Библиотека
+            </button>
+            <div className="reader-actions">
+              <button
+                className="secondary"
+                aria-label="Вид текста"
+                onClick={() => navigate('reader', route.textId, 'appearance')}
+              >
+                Aa
+              </button>
+              <button
+                className="secondary"
+                aria-label="Как читать"
+                onClick={() => {
+                  changeAppearance({ ...appearance, hintSeen: true });
+                  navigate('reader', route.textId, 'help');
+                }}
+              >
+                ?
+              </button>
+            </div>
+          </>
+        ) : (
+          <span className="brand">
+            vibe<span>·</span>
+          </span>
+        )}
+      </header>
+      {route.screen !== 'reader' && (
+        <h1>
+          {route.screen === 'library'
+            ? 'Ваша библиотека'
+            : route.screen === 'vocabulary'
+              ? 'Личный словарь'
+              : 'Настройки'}
+        </h1>
       )}
-      {busy && <p role="status">Ожидаем текст от OpenAI…</p>}
-      {error && (
+      {!ready && <p role="status">Открываем сохранённые тексты…</p>}
+      {error && route.panel !== 'generation' && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
-      {totalTokens !== undefined && (
-        <p className="hint" role="status">
-          Токенов использовано: {totalTokens}
-        </p>
+      <div hidden={route.screen !== 'library'}>
+        <p className="hint">Истории для вашего следующего маленького шага.</p>
+        <button
+          disabled={!ready || disabled}
+          onClick={() => {
+            if (!settings.load().apiKey) navigate('settings');
+            else navigate('library', undefined, 'generation');
+          }}
+        >
+          ＋ Новый текст
+        </button>
+        {!settings.load().apiKey && (
+          <p className="hint">
+            Сохраните ключ в настройках, чтобы создавать тексты. Сохранённые истории доступны без
+            ключа.
+          </p>
+        )}
+        {continuation && (
+          <section className="continue-card">
+            <p className="eyebrow">ПРОДОЛЖИТЬ ЧТЕНИЕ</p>
+            <h2 lang="de">{continuation.text.title}</h2>
+            <p className="hint">
+              {continuation.text.cefrLevel} · {continuation.text.targetDuration} мин
+            </p>
+            <button disabled={disabled} onClick={() => void openReading(continuation.text.id)}>
+              Продолжить
+            </button>
+          </section>
+        )}
+        <HistoryList entries={history} disabled={disabled} onOpen={(id) => void openReading(id)} />
+      </div>
+      {route.panel === 'generation' && (
+        <Modal
+          label="Новый текст"
+          onClose={() => {
+            active.current?.abort();
+            dismissPanel(route.screen, route.textId);
+          }}
+        >
+          <GenerationPanel
+            level={generationChoice?.level ?? preferences?.cefrLevel ?? 'A1'}
+            duration={generationChoice?.duration ?? preferences?.targetDuration ?? 3}
+            busy={busy}
+            disabled={disabled}
+            onChange={(level, duration) => setGenerationChoice({ level, duration })}
+            onGenerate={(level, duration) => void generate(level, duration)}
+            onCancel={() => active.current?.abort()}
+          />
+          {busy && <p role="status">Ожидаем текст от OpenAI…</p>}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+        </Modal>
       )}
-      {pending.length > 0 && (
+      {route.screen === 'reader' && pending.length > 0 && (
         <section aria-labelledby="pending-heading">
           <h2 id="pending-heading">Незавершённые отметки</h2>
           <p>Запрос не завершился. Отметки сохранены.</p>
@@ -372,25 +608,50 @@ export function App({
           ))}
         </section>
       )}
-      {reading && (
+      {route.screen === 'reader' && reading && route.textId === reading.text.id && (
         <Reader
           key={reading.session.id}
           text={reading.text}
           session={reading.session}
           disabled={disabled}
+          appearance={appearance}
+          selectedWord={wordTarget}
           selectedSentenceId={grammarTarget}
-          onWord={(selection) => void lookup(selection)}
-          onGrammar={(id) => void explain(id)}
+          onWord={(selection) => {
+            if (!appearance.hintSeen) changeAppearance({ ...appearance, hintSeen: true });
+            void lookup(selection);
+          }}
+          onGrammar={(id) => {
+            if (!appearance.hintSeen) changeAppearance({ ...appearance, hintSeen: true });
+            void explain(id);
+          }}
           onPosition={savePosition}
           onComplete={() => void finishReading()}
           onStart={() => void openReading(reading.text.id, true)}
         />
       )}
-      {(wordTarget || grammarTarget) && (
-        <aside className="analysis-panel" aria-label="Карточка обучения">
+      {totalTokens !== undefined && route.screen === 'reader' && (
+        <details>
+          <summary>Детали генерации</summary>
+          <p className="hint">Токенов использовано: {totalTokens}</p>
+        </details>
+      )}
+      {route.screen === 'reader' && route.panel === 'analysis' && (wordTarget || grammarTarget) && (
+        <FloatingSheet
+          expanded={expanded}
+          onExpand={() => setExpanded((value) => !value)}
+          onClose={closeAnalysis}
+          selection={
+            wordTarget
+              ? `[data-sentence-id="${CSS.escape(wordTarget.sentenceId)}"] [data-word-start="${wordTarget.start}"]`
+              : `[data-sentence-id="${CSS.escape(grammarTarget ?? '')}"]`
+          }
+        >
           {wordTarget && (
             <VocabularyCard
+              expanded={expanded}
               sentence={sentence}
+              surface={wordTarget.surfaceForm}
               result={wordResult}
               busy={analysisBusy || undoBusy}
               onUndo={() => {
@@ -401,6 +662,7 @@ export function App({
           )}
           {grammarTarget && (
             <GrammarCard
+              expanded={expanded}
               sentence={sentence}
               result={grammarResult}
               busy={analysisBusy}
@@ -442,18 +704,75 @@ export function App({
               </div>
             </>
           )}
-          {analysisTokens !== undefined && (
-            <p className="hint">Токенов использовано: {analysisTokens}</p>
+          {expanded && analysisTokens !== undefined && (
+            <details>
+              <summary>Детали запроса</summary>
+              <p className="hint">Токенов использовано: {analysisTokens}</p>
+              <p className="hint">
+                {wordResult?.cached || grammarResult?.cached
+                  ? 'Сохранённый результат'
+                  : 'Новый результат'}
+              </p>
+            </details>
           )}
-        </aside>
+        </FloatingSheet>
       )}
-      <VocabularyList entries={vocabulary} loadHistory={readingActions.wordHistory} />
-      <HistoryList entries={history} disabled={disabled} onOpen={(id) => void openReading(id)} />
-      <BackupPanel backups={backups} disabled={disabled} onRestore={restoreData} />
-      <details className="settings-details" open>
-        <summary>Настройки и проверка OpenAI</summary>
-        <SettingsPage settings={settings} />
-      </details>
+      {route.panel === 'appearance' && (
+        <Modal label="Вид текста" onClose={() => dismissPanel(route.screen, route.textId)}>
+          <ReaderAppearance value={appearance} onChange={changeAppearance} />
+        </Modal>
+      )}
+      {route.panel === 'help' && (
+        <Modal label="Как читать" onClose={() => dismissPanel(route.screen, route.textId)}>
+          <h2>Как читать</h2>
+          <p>
+            Нажмите слово для перевода. Удерживайте слово около полусекунды для разбора предложения.
+          </p>
+          <p>
+            Кнопка «Разобрать предложение» позволяет выбрать предложение без жеста. Успешный перевод
+            отмечает слово как незнакомое; отметку можно отменить в карточке. Закрытие карточки
+            сохраняет отметку.
+          </p>
+          <p>
+            Полоска показывает позицию в тексте. Для сохранения результата нажмите «Завершить
+            чтение».
+          </p>
+        </Modal>
+      )}
+      {route.screen === 'vocabulary' && (
+        <VocabularyList entries={vocabulary} loadHistory={readingActions.wordHistory} />
+      )}
+      {route.screen === 'settings' && (
+        <>
+          <SettingsPage settings={settings} />
+          <ReaderAppearance value={appearance} onChange={changeAppearance} />
+          <BackupPanel backups={backups} disabled={disabled} onRestore={restoreData} />
+        </>
+      )}
+      {route.screen !== 'reader' && (
+        <nav className="bottom-nav" aria-label="Основная навигация">
+          {(
+            [
+              ['library', '▤', 'Библиотека'],
+              ['vocabulary', 'Аа', 'Словарь'],
+              ['settings', '⚙', 'Настройки'],
+            ] as const
+          ).map(([screen, icon, label]) => (
+            <button
+              className="secondary"
+              key={screen}
+              aria-current={route.screen === screen ? 'page' : undefined}
+              onClick={() => {
+                if (route.screen === 'library') libraryScroll.current = window.scrollY;
+                navigate(screen);
+              }}
+            >
+              <span aria-hidden="true">{icon}</span>
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
     </main>
   );
 

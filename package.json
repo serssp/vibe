@@ -15,7 +15,7 @@
     "format:check": "prettier . --check",
     "check:architecture": "depcruise --config .dependency-cruiser.cjs --output-type err src",
     "test": "vitest run",
-    "test:browser": "node tests/browser-check.mjs && node tests/storage-browser-check.mjs && node tests/learning-browser-check.mjs && node tests/daily-browser-check.mjs",
+    "test:browser": "node tests/browser-check.mjs && node tests/storage-browser-check.mjs && node tests/learning-browser-check.mjs && node tests/daily-browser-check.mjs && node tests/design-browser-check.mjs",
     "check:cors": "node tests/live-cors-check.mjs",
     "build": "npm run typecheck && vite build",
     "preview": "vite preview --host 0.0.0.0",

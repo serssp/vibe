@@ -1,3 +1,4 @@
+import { settings } from './browser-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -33,7 +34,7 @@ try {
   });
   const page = await context.newPage();
   await page.goto(`${origin}/vibe/`);
-  await page.getByRole('heading', { name: 'Проверка подключения' }).waitFor();
+  await settings(page);
   const saved = await page.evaluate(async () => {
     const { IndexedDbLearningRepository } =
       await import('/vibe/src/infrastructure/storage/indexeddb-learning.ts');

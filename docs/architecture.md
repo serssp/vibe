@@ -25,14 +25,14 @@ flowchart LR
 
 Arrows represent source dependencies. At runtime, Application calls injected adapters through ports; use cases therefore do not import the adapter classes.
 
-| Area                       | Responsibility                                               | Allowed dependencies                                                        |
-| -------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `src/main.tsx`, `src/app/` | React startup, dependency composition, and composition root  | Features, Application; Infrastructure only from `app/create-services.ts`    |
-| `src/features/`            | Components, UI state, accessibility, and future gestures     | Application, Domain, React; direct imports of other features are prohibited |
-| `src/application/`         | Use cases and interfaces for external actions                | Application, Domain; no browser IO or SDKs                                  |
-| `src/domain/`              | Pure preferences, learning models, and structural validation | Domain only; no React, SDKs, Node.js, or browser APIs                       |
-| `src/infrastructure/`      | HTTP and local adapters                                      | Application, Domain, Infrastructure, prompts, and necessary SDKs            |
-| `src/prompts/`             | Separate English model instructions                          | No business-logic imports                                                   |
+| Area                       | Responsibility                                                        | Allowed dependencies                                                        |
+| -------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `src/main.tsx`, `src/app/` | React startup, dependency composition, and composition root           | Features, Application; Infrastructure only from `app/create-services.ts`    |
+| `src/features/`            | Components, UI state, accessibility, and gestures and hash navigation | Application, Domain, React; direct imports of other features are prohibited |
+| `src/application/`         | Use cases and interfaces for external actions                         | Application, Domain; no browser IO or SDKs                                  |
+| `src/domain/`              | Pure preferences, learning models, and structural validation          | Domain only; no React, SDKs, Node.js, or browser APIs                       |
+| `src/infrastructure/`      | HTTP and local adapters                                               | Application, Domain, Infrastructure, prompts, and necessary SDKs            |
+| `src/prompts/`             | Separate English model instructions                                   | No business-logic imports                                                   |
 
 Concrete adapters are created in `src/app/create-services.ts`. `SettingsPage` receives `SettingsActions` through props. Use cases receive `AIProvider` and `StorageRepository`; plain mock objects implementing these interfaces are sufficient for tests.
 
@@ -43,9 +43,11 @@ src/
   main.tsx
   app/
     App.tsx
+    navigation.ts
+    {Modal,FloatingSheet}.tsx
     create-services.ts
   features/
-    settings/SettingsPage.tsx
+    settings/{SettingsPage,ReaderAppearance}.tsx
     reader/{GenerationPanel,Reader}.tsx
     reader/{use-reader-gestures,use-reading-position}.ts
     vocabulary/{VocabularyCard,VocabularyList}.tsx
@@ -57,10 +59,12 @@ src/
       learning-ai-provider.ts
       runtime.ts
       storage-repository.ts
+      reader-preferences.ts
       learning-repository.ts
     use-cases/
       check-connection.ts
       settings.ts
+      reader-preferences.ts
       generate-text.ts
       lookup-word.ts
       explain-grammar.ts
@@ -72,7 +76,7 @@ src/
     vocabulary/{models,lookups,word-card}.ts
     learning/{data,records,validation,completion,occurrences,backup}.ts
     grammar/models.ts
-    settings/{app-settings,model-preferences}.ts
+    settings/{app-settings,model-preferences,reader-appearance}.ts
   infrastructure/
     browser-runtime.ts
     ai/{openai-connection,prompt-registry,structured-outputs}.ts
@@ -117,6 +121,18 @@ The key is not part of Domain: neither `ModelPreferences` nor `AppSettings` cont
 
 The OpenAI adapter preserves stage 0 behavior: a fixed HTTPS endpoint, CORS, no cookies/redirects, timeout, cancellation, deduplication, and safe errors. A future backend proxy requires only another `AIProvider` adapter and a composition-root change. UI and the use case remain unchanged.
 
+## Library-first presentation and reader preferences
+
+The shell uses `#library`, `#reader/<encoded-text-id>`, `#vocabulary`, and `#settings`; panel query parameters create transient history entries. This works under the existing GitHub Pages `/vibe/` base without server routes. Browser Back closes a panel first, then returns to the preceding destination. The shell disables native history scroll restoration and restores its own library/sentence anchors, preventing browser history from restoring stale pixel coordinates after typography changes. Refresh restores a reader from its text ID without AI; transient analysis is discarded while durable Pending intents remain retryable. Returning through browser history restores the current in-memory sentence position as well as the committed position. The library stays mounted while hidden so its local search, pagination and scroll position survive reader navigation.
+
+Generation uses a modal with native radio groups for the existing level/duration options. Opening a saved text and local filters never issue requests. Library cards distinguish unfinished reading from completed viewing; Continue selects the current unfinished reading, falling back to the latest unfinished session. Vocabulary filters use stored Unknown/Learned status and keep distinct meanings separate, including Learned entries with no remaining marks. Inactive undone Unknown entries remain hidden.
+
+Reader typography, sentence-per-line mode and first-use help acknowledgement use the separate `ReaderPreferencesRepository` port and `createReaderPreferences` actions. `LocalSettingsRepository` implements the port with `vibe.reader-appearance`. Pure Domain validation bounds size/spacing and rejects unsupported values; absent, malformed or unavailable storage uses safe defaults. Saving failure is reported while the current page keeps the chosen appearance. These preferences do not alter IndexedDB AppSettings, schema v3, backups, original connection keys or AI contracts. The composition root injects these actions into App; Reader and appearance controls receive props only.
+
+German sentences render continuously using existing IDs and token offsets. Paragraph breaks are preserved only when the stored full content contains a reliable double newline between successive exact sentence occurrences. The generation response schema stays unchanged. Typography changes restore the visible sentence anchor, and toolbar controls stay available while reading.
+
+Analysis request controllers are aborted on close or navigation. A request epoch prevents late results or errors from replacing a later selection or reopening a sheet. Existing use cases still retain Pending lookups after cancellation and record successful cached marks. Closing a resolved card is not undo. Diagnostics and full word context live in secondary details; grammar rules/examples expand inside the sheet.
+
 ## IndexedDB decisions
 
 Use the native IndexedDB API, without a production database dependency. Database `vibe.learning`, schema version 3, has nine stores and an explicit ordered migration registry. Migration 1 created the initial seven stores; migration 2 adds wordLookups/wordTranslations and their indexes, preserving existing records. Migration 3 preserves settings while adding activeSessionId and indexes for vocabulary-event history. The separate localStorage connection settings require no migration. See [data-model.md](data-model.md) for records, indexes, and invariants.
@@ -141,13 +157,13 @@ ExplainGrammar receives the exact sentence and text CEFR level. Its cache key in
 
 The Prompt Registry reads the three separate English Markdown files and their version metadata. The adapter uses strict Responses API `text.format` JSON Schema, based on the [official OpenAI documentation](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses), and validates returned shapes, completion, refusal and contextual fragments. HTTP diagnostics and raw bodies never reach UI. Token totals are returned for display when available. Connection timeout is 20 seconds, learning timeout 60 seconds; each operation supports abort. One provider permits one active request. Use cases and UI also prevent concurrent actions; retries require explicit user action.
 
-Reader renders original whitespace and punctuation around Unicode word tokens. Pointer recognition uses a 500 ms hold and an 8 px movement threshold. Scroll, pointer cancellation, secondary touches and focus loss cancel recognition. The resulting synthetic click is suppressed until the next intentional pointer action; keyboard activation remains available. Sentence-analysis buttons provide an accessible alternative. Cards appear over the current viewport with the source sentence and render text through React, without HTML injection. Real Android Chrome gesture verification is still required.
+Reader renders original whitespace and punctuation around Unicode word tokens. Pointer recognition uses a 500 ms hold and an 8 px movement threshold. Scroll, pointer cancellation, secondary touches and focus loss cancel recognition. The resulting synthetic click is suppressed until the next intentional pointer action; keyboard activation remains available. A single expandable sentence selector and action provide the keyboard alternative; focusing a sentence reveals that control. Cards share a compact/expanded floating sheet and render text through React, without HTML injection. ResizeObserver measures the sheet and keeps the selected token or sentence above it. The handle supports downward dismissal; visible buttons and Escape remain available. Real Android Chrome gesture verification is still required.
 
 ## Reading, history and backup decisions
 
 StartReading resumes the existing unfinished session for that text, or creates a distinct InProgress session after completion. New rereading candidates may use previously verified contextual cards, including inflected forms; words first tapped in the original session can be learned on a later untapped rereading without changing the stored document. ResumeReading selects an existing session without recomputing progress. One unfinished session per text is enforced in writes and imports. The start timestamp and candidate snapshot cannot change once reading starts. Reading position writes reread the session within a transaction, so a late autosave cannot reopen or modify a completed session.
 
-Reader saves a stable sentence anchor and a pixel offset within that sentence. It restores after mounting and saves independently of AI busy state. A 300 ms scroll debounce reduces writes; visibility/pagehide/navigation flush pending changes. The browser cannot guarantee delivery after an abrupt process kill. Completed-reader word spans are plain text; an explicit new session is required before another learning mark. Grammar remains available through its sentence button.
+Reader saves a stable sentence anchor and a pixel offset within that sentence relative to the visible area below the sticky reader header. Legacy anchors remain compatible; no learning migration is required. It restores after mounting and saves independently of AI busy state. A 300 ms scroll debounce reduces writes; visibility/pagehide/navigation flush pending changes. The browser cannot guarantee delivery after an abrupt process kill. Completed-reader word spans are plain text; an explicit new session is required before another learning mark. Scroll progress remains a position indicator and never completes learning. Grammar remains available through its sentence button.
 
 Completion intersects frozen candidates with verified included IDs or existing contextual translation evidence from that exact immutable text, subtracts undone marks, and appends at most one exposure per session/word. First-session entries and later marks from another interrupted session remain Unknown. Absence leaves state unchanged. A Completed session returns immediately without rewriting records. Both competing completions and autosave/completion races serialize in IndexedDB.
 
