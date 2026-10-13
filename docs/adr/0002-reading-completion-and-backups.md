@@ -1,6 +1,6 @@
 # ADR 0002 — Reading completion, conservative repetition and backups
 
-Date: 2026-10-13. Status: implemented for the authorized stages 6–8 batch.
+Date: 2026-10-13. Status: implemented in the accepted MVP.
 
 ## Context
 

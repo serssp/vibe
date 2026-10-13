@@ -344,7 +344,6 @@ Maintain:
 
 - `README.md`: startup and deployment.
 - `docs/requirements.md`: this specification.
-- `docs/implementation-plan.md`: MVP stages.
 - `docs/architecture.md`: layers and dependencies.
 - `docs/data-model.md`: entities, invariants, and migrations.
 - `docs/testing.md`: testing strategy.

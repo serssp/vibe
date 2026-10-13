@@ -1,6 +1,6 @@
 # Vibe architecture
 
-Status: stages 6–8 implementation. The user authorized all remaining stages together. Reading completion, conservative adaptive repetition, history and backups extend the existing generation/vocabulary/grammar workflow. Real-device acceptance is tracked separately in the stage reports.
+Status: completed MVP accepted by the user. This document describes the current architecture for maintenance and future development. Verification guidance is maintained in [testing.md](testing.md).
 
 ## Stack and tooling decisions
 

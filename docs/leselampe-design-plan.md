@@ -3,9 +3,9 @@
 **Date:** 2026-10-13
 **Status:** Proposed implementation plan; no application changes included in this commit.
 **Scope:** Bring Vibe's existing mobile reading experience and visual design closer to [Leselampe](https://github.com/clbagrat/leselampe).
-**Related documents:** [Requirements](requirements.md), [MVP implementation plan](implementation-plan.md), [Architecture](architecture.md), [Testing](testing.md).
+**Related documents:** [Requirements](requirements.md), [Architecture](architecture.md), [Testing](testing.md).
 
-This plan covers a design update after the MVP stages. It does not replace the MVP requirements or declare their outstanding manual acceptance complete. The plan and project documentation are in English; the application UI and learning explanations remain in Russian.
+This plan covers a new design update after the MVP accepted by the user. It does not replace the MVP requirements or imply that the agent performed real-device or real-model verification. The plan and project documentation are in English; the application UI and learning explanations remain in Russian.
 
 ## 1. Target experience
 
@@ -185,7 +185,7 @@ Do not change automatic unknown-word marking into an explicit add/ignore workflo
 - Compare composition with Leselampe: typography, density, paper surface, header size, card hierarchy, and selected-text visibility.
 - Verify on real Android Chrome: Back, scrolling, taps, long press, dismissal, keyboard, browser toolbar resizing, font scaling, refresh, and recovery.
 - Check deployment through the existing GitHub Actions workflow; record its actual result separately from local checks.
-- Update architecture/testing documentation and relevant feature documentation.
+- Update the architecture and testing documentation.
 
 **Acceptance**
 

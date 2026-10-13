@@ -1,6 +1,6 @@
 # Testing strategy
 
-Status: stages 6–8. Automated checks never use a valid OpenAI key or make real OpenAI requests.
+Status: completed MVP accepted by the user. These checks guide regression verification for future changes. Automated checks never use a valid OpenAI key or make real OpenAI requests.
 
 ## Required local and CI checks
 
@@ -38,22 +38,20 @@ Repository integration tests use a fresh `fake-indexeddb` factory per fixture, w
 
 Chromium at 390×844 is an automated mobile viewport check, not a real Android Chrome verification. Tests use synthetic learning records and mocked AI results. They verify browser gestures and application contracts, but do not assess the quality of real generated German, model sense matching, CEFR accuracy, or real-device touch behavior. Automated reading-cycle tests verify completion facts and state transitions.
 
-Android Chrome checks must be reported separately. Generation, vocabulary and grammar are now testable through the UI. Real OpenAI requests and real Android gestures remain separate manual checks; automated success does not complete those acceptance criteria. A successful local check does not prove deployed GitHub Actions or a published version; report each separately.
+For future changes, report Android Chrome checks separately from automated Chromium. Real OpenAI content quality and device gestures require manual regression checks. A successful local check does not prove deployed GitHub Actions or a published version; report each separately. User acceptance of the completed MVP does not imply that the agent performed real-device or real-model verification.
 
 Real OpenAI requests require an explicit user action. `npm run check:cors` is a separate real-network diagnostic with an intentionally invalid key; it is excluded from required checks and CI. Do not log keys or copy them into fixtures, screenshots, reports, exports, or builds.
 
-## Manual stages 3–5 acceptance
+## Manual generation, vocabulary and grammar regression
 
-Use this version on a real Android Chrome device. Save a valid key/model locally, generate each intended level/duration, and assess German coherence, length and CEFR. Refresh and confirm the same text returns without another request. Tap inflected words and nouns, verify the contextual Russian meaning and article/gender, undo an accidental tap, and check vocabulary after refresh. Compare distinct meanings of the same spelling and a separable verb or fixed expression.
+When checking changes to generation or reader interactions, use a real Android Chrome device. Save a valid key/model locally, generate each intended level/duration, and assess German coherence, length and CEFR. Refresh and confirm the same text returns without another request. Tap inflected words and nouns, verify the contextual Russian meaning and article/gender, undo an accidental tap, and check vocabulary after refresh. Compare distinct meanings of the same spelling and a separable verb or fixed expression.
 
-Hold a word for about 500 ms: the whole sentence should be highlighted with a Russian explanation and no vocabulary mark. Check short taps, scrolling, movement, cancellation and the system context menu; use the sentence-analysis button as an alternative. Retry after disabling/restoring connectivity and confirm failed word marks remain available. Do not put the key into feedback. Record real requests, phone/browser version, and device observations separately from mocked tests. Stages 2–5 have been deployed and separately checked in published Chromium with mock API responses. The current stage reports link the successful CI/deployment run. Real OpenAI content and a real Android device still require the manual checks above.
+Hold a word for about 500 ms: the whole sentence should be highlighted with a Russian explanation and no vocabulary mark. Check short taps, scrolling, movement, cancellation and the system context menu; use the sentence-analysis button as an alternative. Retry after disabling/restoring connectivity and confirm failed word marks remain available. Do not put the key into feedback. Record real requests, phone/browser version, and device observations separately from mocked tests.
 
-## Manual stages 6–8 acceptance
+## Manual reading, history and backup regression
 
 On real Android Chrome, generate a text, mark a word, scroll, switch apps, close/reopen the tab and verify recovery. Complete reading: the new word must remain Unknown. Generate again and check a reliably included untapped word becomes Learned; a tapped word stays Unknown and an absent word is unchanged. Press completion again or refresh: counters must not increase twice. Review local word facts.
 
 Open an older unfinished text and refresh: that selected reading and position should return. View a completed text: learning facts must remain unchanged. Start a new session explicitly and confirm a new mark changes Learned back to Unknown. Export, change local learning data, choose the backup, cancel once, then restore after explicit confirmation. Verify texts, sessions, pending marks and cached explanations; key replacement/deletion still work independently. Test malformed and unsupported JSON files. Keep a backup before testing updates with real data.
 
 Exercise taps, 500 ms holds, scrolling, canceled touches, enlarged system fonts, card scrolling and one-handed access to completion and history. Test network loss during each explicit AI action and cached reading while already open. Record phone model, Android/Chrome versions, real model name and observations without including credentials. Abrupt OS process termination can lose movement since the last committed debounce save; pagehide is best effort. iOS Safari compatibility is not certified by the Chromium suite.
-
-The final stages 6–8 code passed GitHub Actions and Pages deployment in [run 38359915214](https://github.com/serssp/vibe/actions/runs/38359915214). All eight daily-workflow groups also passed against the published site with mocked OpenAI. The first published check exposed a test-only race: normal position autosave could occur while selecting an import file. Preview/cancellation assertions now compare learning facts independently of legitimate position saving. A later regression scenario verifies untapped rereading from saved contextual cards and round-trip backup of those exposures.

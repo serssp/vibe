@@ -1,6 +1,6 @@
 # Vibe — German Learning App
 
-A personal German reading app with contextual Russian vocabulary and grammar cards, adaptive repetition, reading history, and JSON backups. Stages 0–5 were implemented previously; the user authorized all remaining stages 6–8 together. Implementation and automated verification are complete; real Android and real model quality acceptance remain separate manual checks. Requirements: [docs/requirements.md](docs/requirements.md), execution order: [docs/implementation-plan.md](docs/implementation-plan.md), layer design: [docs/architecture.md](docs/architecture.md), schema: [docs/data-model.md](docs/data-model.md).
+A personal German reading app with contextual Russian vocabulary and grammar cards, adaptive repetition, reading history, and JSON backups. The user has accepted the completed MVP. Future changes follow the working rules in [AGENTS.md](AGENTS.md). Requirements: [docs/requirements.md](docs/requirements.md), layer design: [docs/architecture.md](docs/architecture.md), schema: [docs/data-model.md](docs/data-model.md).
 
 ## Local startup
 
@@ -22,7 +22,7 @@ npm run preview
 
 `test:browser` first checks production preview at `127.0.0.1:4173/vibe/`, then starts a Vite test server at `127.0.0.1:4174/vibe/` to exercise the IndexedDB adapter in native Chromium, then checks the production learning workflows and touch gestures on port 4173, followed by daily reading/history/backup scenarios on port 4175. Tests use a dummy key and mock or block the API; they do not call OpenAI. On Linux, Playwright may require system dependencies: `npx playwright install --with-deps chromium`. See [docs/testing.md](docs/testing.md) for verification boundaries.
 
-`npm run check` runs strict typechecks for the application and pure Domain, ESLint, Prettier checks, architectural dependency analysis, unit tests, and a build. Use `npm run format` to format files and `npm run lint:fix` for automatically fixable lint errors. The original requirements and implementation plan are excluded from automatic formatting.
+`npm run check` runs strict typechecks for the application and pure Domain, ESLint, Prettier checks, architectural dependency analysis, unit tests, and a build. Use `npm run format` to format files and `npm run lint:fix` for automatically fixable lint errors. The original requirements are excluded from automatic formatting.
 
 ## OpenAI setup and test
 
@@ -43,12 +43,6 @@ HTTP 401 means an invalid key, 403 means access denied, 429 indicates a limit/ba
 Site: https://serssp.github.io/vibe/ . Vite always builds with base `/vibe/`; the application does not use nested routes and loads at this URL after a refresh.
 
 In Settings → Pages → Build and deployment, select **GitHub Actions**. Workflow `.github/workflows/pages.yml` runs `npm ci`, typecheck, lint, format check, architecture check, unit tests, a production build, and browser mock checks, then deploys only `dist` through the official Pages artifact. Deployment runs on `main`; pull requests run checks only. The workflow does not receive an OpenAI key. If Pages settings block deployment, do not work around this by publishing source files or adding a backend.
-
-## Stage 0 acceptance
-
-Open the deployed site in real Android Chrome, refresh it, save your key, refresh again, and run the test. Expect **OpenAI responded** and `Hallo!`. Replace the key with a deliberately invalid value: expect an understandable error. Disable the network: expect a network error; restore connectivity and retry. Check key replacement and deletion after a refresh. Do not include the key in the report.
-
-Automated Chromium with a mobile viewport does not replace Android Chrome. Mock success does not verify an OpenAI response. Historical results are in [docs/stage-0-report.md](docs/stage-0-report.md) and [docs/stage-1-report.md](docs/stage-1-report.md). Stage 2 results are in [docs/stage-2-report.md](docs/stage-2-report.md). Historical reports: [stage 3](docs/stage-3-report.md), [stage 4](docs/stage-4-report.md), [stage 5](docs/stage-5-report.md). Current reports: [stage 6](docs/stage-6-report.md), [stage 7](docs/stage-7-report.md), [stage 8](docs/stage-8-report.md).
 
 ## Reading and analysis
 
@@ -72,4 +66,4 @@ Generation supplies up to 30 active Unknown words, prioritizing older marks. The
 
 Database `vibe.learning` uses schema version 3. Migrations 1 and 2 preserve their original stores. Migration 3 adds vocabulary-history indexes and a nullable selected-session reference to existing preferences. Upgrade and rollback tests cover v1/v2 data. See [data-model.md](docs/data-model.md), [architecture.md](docs/architecture.md), and [testing.md](docs/testing.md).
 
-Deployment and published mock verification are recorded in [stage 8](docs/stage-8-report.md). Real OpenAI quality and Android touch behavior must be checked on the user's phone; automated Chromium does not establish those acceptance criteria.
+For future changes, use the automated and manual regression checks in [testing.md](docs/testing.md). Automated Chromium verifies application contracts with mocked AI; real-device gestures and real model quality require separate checks.

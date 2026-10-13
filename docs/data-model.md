@@ -1,6 +1,6 @@
 # Learning data model and schema
 
-Status: stages 6–8. Database `vibe.learning`, IndexedDB schema version 3. All relationship fields use stable string IDs; timestamps use ISO 8601 UTC with a trailing `Z`. Export format is `vibe-learning`, version 1, with a UTC exportedAt timestamp and a validated LearningSnapshot.
+Status: accepted MVP. Database `vibe.learning`, IndexedDB schema version 3. All relationship fields use stable string IDs; timestamps use ISO 8601 UTC with a trailing `Z`. Export format is `vibe-learning`, version 1, with a UTC exportedAt timestamp and a validated LearningSnapshot.
 
 ## Entities
 
