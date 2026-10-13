@@ -135,6 +135,29 @@ try {
       db.close();
       return Object.fromEntries(data);
     });
+  const noOverflow = async (label) => {
+    const geometry = await page.evaluate(() => {
+      const width = document.documentElement.clientWidth;
+      return {
+        width,
+        scroll: document.documentElement.scrollWidth,
+        inner: innerWidth,
+        elements: [...document.querySelectorAll('body *')]
+          .filter(
+            (node) =>
+              node.getClientRects().length && node.getBoundingClientRect().right > width + 1,
+          )
+          .slice(0, 24)
+          .map((node) => ({
+            tag: node.tagName,
+            class: node.className,
+            right: node.getBoundingClientRect().right,
+            width: node.getBoundingClientRect().width,
+          })),
+      };
+    });
+    assert(geometry.scroll <= geometry.width, `${label}: ${JSON.stringify(geometry)}`);
+  };
   const shot = async (name) => {
     await delay(100);
     return page.screenshot({ path: `${output}/${name}.png` });
@@ -316,10 +339,7 @@ try {
       await page.evaluate((value) => {
         document.documentElement.style.fontSize = value;
       }, size);
-      assert(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        `Overflow at ${width}/${size}`,
-      );
+      await noOverflow(`Library at ${width}/${size}`);
       const nav = await page.locator('.bottom-nav').boundingBox();
       assert(
         nav && nav.x >= -1 && nav.x + nav.width <= width + 1,
@@ -338,37 +358,22 @@ try {
         document.documentElement.style.fontSize = value;
       }, size);
       await settings(page);
-      assert(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        `Settings overflow at ${width}/${size}`,
-      );
+      await noOverflow(`Settings at ${width}/${size}`);
       await library(page);
       await page.getByRole('button', { name: 'Словарь', exact: true }).click();
-      assert(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        `Vocabulary overflow at ${width}/${size}`,
-      );
+      await noOverflow(`Vocabulary at ${width}/${size}`);
       await resume(page);
-      assert(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        `Reader overflow at ${width}/${size}`,
-      );
+      await noOverflow(`Reader at ${width}/${size}`);
       await word.tap();
       await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
-      assert(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        `Sheet overflow at ${width}/${size}`,
-      );
+      await noOverflow(`Sheet at ${width}/${size}`);
       await page
         .locator('.analysis-panel')
         .getByRole('button', { name: 'Отменить отметку', exact: true })
         .click();
       await page.locator('.analysis-panel').waitFor({ state: 'detached' });
       await generation(page);
-      assert(
-        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-        `Generation overflow at ${width}/${size}`,
-      );
+      await noOverflow(`Generation at ${width}/${size}`);
       await page.getByRole('dialog').getByRole('button', { name: 'Закрыть', exact: true }).click();
       await page.getByRole('dialog').waitFor({ state: 'detached' });
     }

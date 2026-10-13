@@ -767,8 +767,10 @@ export function App({
                 navigate(screen);
               }}
             >
-              <span aria-hidden="true">{icon}</span>
-              {label}
+              <span className="nav-icon" aria-hidden="true">
+                {icon}
+              </span>
+              <span className="nav-label">{label}</span>
             </button>
           ))}
         </nav>

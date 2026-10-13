@@ -56,7 +56,7 @@ export function ReaderAppearance({
           checked={value.sentencePerLine}
           onChange={(event) => onChange({ ...value, sentencePerLine: event.target.checked })}
         />
-        Каждое предложение с новой строки
+        <span>Каждое предложение с новой строки</span>
       </label>
     </section>
   );

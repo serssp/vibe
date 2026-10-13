@@ -17,6 +17,9 @@
   color: var(--ink);
   background: var(--paper);
   font-synthesis: none;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overflow-wrap: anywhere;
   line-height: 1.6;
 }
 * {
@@ -81,6 +84,9 @@ select {
   color: var(--ink);
 }
 button {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font: inherit;
   font-weight: 600;
   min-height: 48px;
@@ -268,8 +274,13 @@ li {
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.bottom-nav button span {
+.bottom-nav .nav-icon {
   font-size: 1.25rem;
+}
+.bottom-nav .nav-label {
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .bottom-nav [aria-current] {
   color: var(--accent);
@@ -318,7 +329,8 @@ legend {
   margin-top: 0.5rem;
 }
 .segments label {
-  flex: 1;
+  flex: 1 1 5rem;
+  min-width: 0;
   margin: 0;
   position: relative;
 }
@@ -328,6 +340,7 @@ legend {
   width: 1px;
 }
 .segments span {
+  overflow-wrap: anywhere;
   display: block;
   min-height: 48px;
   border: 1px solid var(--border);
@@ -515,4 +528,9 @@ input[type='range'] {
 .reader-actions {
   display: flex;
   gap: 0.4rem;
+}
+
+.checkbox span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
