@@ -1,3 +1,3 @@
 # History
 
-Граница Presentation для списка документов и сеансов. Реализация относится к этапу 7. Зависимости: Application и Domain; восстановление чтения выполняется через Application. Прямые зависимости от других features, API и хранилищ запрещены.
+Presentation boundary for the document and session lists. Implementation belongs to stage 7. Dependencies: Application and Domain; reading recovery goes through Application. Direct dependencies on other features, APIs, or storage are prohibited.

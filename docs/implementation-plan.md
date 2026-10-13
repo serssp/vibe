@@ -1,258 +1,258 @@
 # German Learning App — MVP Implementation Plan
 
-**Версия:** 1.0  
-**Основан на:** [Technical Specification v0.5](requirements.md)  
-**Исполнитель:** Codex
+**Version:** 1.0\
+**Based on:** [Technical Specification v0.5](requirements.md)\
+**Implementer:** Codex
 
-## 1. Правила выполнения
+## 1. Execution rules
 
-- Выполнять этапы 0–8 строго последовательно. Не переходить к следующему этапу автоматически: каждый этап требует приёмки пользователя.
-- В конце каждого этапа сообщать: что сделано, изменённые модули, запущенные тесты, результаты, ограничения и готовность к приёмке.
-- Не реализовывать требования будущих этапов заранее.
-- Не переписывать работоспособные модули без необходимости и соблюдать слои из ТЗ.
-- Весь код пишет Codex, без комментариев в исходном коде. Документация и промпты поддерживаются отдельно.
-- При изменении схемы хранения добавлять миграцию и тесты. Изменения поведения сопровождать регрессионными тестами.
-- Не включать ключ OpenAI в Git, сборки, логи, URL или экспорт.
-- Все AI-промпты писать на английском языке.
-- В тестах подменять AI Provider mock-реализацией.
-- Обнаружив блокирующее техническое ограничение, сообщить о нём, а не добавлять backend или менять архитектуру без согласования.
+- Execute stages 0–8 strictly in order. Do not advance automatically: each stage requires user acceptance.
+- At the end of each stage, report completed work, changed modules, tests run, results, limitations, and readiness for acceptance.
+- Do not implement requirements from future stages prematurely.
+- Do not rewrite working modules unnecessarily; follow the layers in the specification.
+- Codex writes all code without source comments. Maintain documentation and prompts separately.
+- Storage schema changes require migrations and tests. Behavior changes require regression tests.
+- Do not include the OpenAI key in Git, builds, logs, URLs, or exports.
+- Write all AI prompts in English.
+- Replace the AI Provider with a mock implementation in tests.
+- Report blocking technical limitations; do not introduce a backend or change the architecture without agreement.
 
-## Этап 0. Проверка технической реализуемости
+## Stage 0. Technical feasibility check
 
-**Цель:** убедиться, что статический сайт на GitHub Pages может обращаться к OpenAI API из мобильного браузера.
+**Goal:** verify that a static GitHub Pages site can call the OpenAI API from a mobile browser.
 
-**Работы:**
-- Минимальный TypeScript-проект и production build.
-- GitHub Actions и публикация на GitHub Pages с корректной базой URL (/vibe/).
-- Минимальный экран ввода и изменения OpenAI API key.
-- Реальный запрос к OpenAI непосредственно из браузера; исследовать CORS и доступный browser-side SDK/API.
-- Обработка неверного ключа и сетевой ошибки.
-- Начальные README.md и AGENTS.md.
+**Work:**
+- A minimal TypeScript project and production build.
+- GitHub Actions and GitHub Pages deployment with the correct base URL (/vibe/).
+- A minimal screen for entering and changing the OpenAI API key.
+- A real OpenAI request directly from the browser; investigate CORS and available browser-side SDK/API support.
+- Handle invalid keys and network errors.
+- Initial README.md and AGENTS.md.
 
-**Приёмка:**
-- [ ] GitHub Pages открывается на Android Chrome.
-- [ ] Приложение корректно загружается после обновления страницы.
-- [ ] OpenAI отвечает на тестовый запрос из браузера.
-- [ ] Неверный ключ показывает понятную ошибку.
-- [ ] Ключ отсутствует в Git и build artifacts.
-- [ ] CI собирает и публикует приложение.
+**Acceptance:**
+- [ ] GitHub Pages opens in Android Chrome.
+- [ ] The application loads correctly after a page refresh.
+- [ ] OpenAI responds to a test request from the browser.
+- [ ] An invalid key produces an understandable error.
+- [ ] The key is absent from Git and build artifacts.
+- [ ] CI builds and deploys the application.
 
-**Результат:** минимальный опубликованный сайт с проверенной AI-интеграцией. Если прямой запрос невозможен, остановиться и сообщить варианты, без самовольного backend.
+**Outcome:** a minimal deployed site with verified AI integration. If direct requests are impossible, stop and report alternatives without introducing a backend unilaterally.
 
-## Этап 1. Каркас и архитектура
+## Stage 1. Foundation and architecture
 
-**Цель:** создать устойчивые границы модулей.
+**Goal:** establish stable module boundaries.
 
-**Работы:**
-- Выбрать и документировать frontend stack.
-- TypeScript strict, линтер, форматирование, unit-тесты.
-- Слои Presentation, Application, Domain, Infrastructure.
-- Интерфейсы AI Provider и Storage Repository.
-- Структура Reader, Vocabulary, Grammar, History, Settings.
-- GitHub Actions: типы, линтер, тесты, build.
+**Work:**
+- Select and document the frontend stack.
+- TypeScript strict, linting, formatting, and unit tests.
+- Presentation, Application, Domain, and Infrastructure layers.
+- AI Provider and Storage Repository interfaces.
+- Reader, Vocabulary, Grammar, History, and Settings structure.
+- GitHub Actions: types, linting, tests, and build.
 - docs/architecture.md.
 
-**Приёмка:**
-- [ ] Сборка и CI проходят.
-- [ ] Domain не зависит от React, OpenAI SDK и IndexedDB.
-- [ ] UI не вызывает OpenAI или IndexedDB напрямую.
-- [ ] Нет циклических зависимостей.
-- [ ] Мобильное приложение открывается.
-- [ ] Архитектура документирована.
+**Acceptance:**
+- [ ] Build and CI pass.
+- [ ] Domain does not depend on React, the OpenAI SDK, or IndexedDB.
+- [ ] UI does not call OpenAI or IndexedDB directly.
+- [ ] No circular dependencies.
+- [ ] The mobile application opens.
+- [ ] The architecture is documented.
 
-**Результат:** архитектурный каркас без реализации всех функций.
+**Outcome:** an architectural foundation without implementing all features.
 
-## Этап 2. Модель данных и IndexedDB
+## Stage 2. Data model and IndexedDB
 
-**Цель:** устойчивое хранение учебных данных.
+**Goal:** reliable persistence of learning data.
 
-**Работы:**
-- Сущности TextDocument, ReadingSession, VocabularyEntry, WordInteraction, WordExposure, GrammarExplanation, AppSettings.
-- IndexedDB adapter и репозитории, версионирование схемы, начальная миграция.
-- Транзакционные операции, уникальные индексы, устойчивые ID предложений.
-- Отдельное хранение API key.
-- Unit- и integration-тесты хранения и миграций.
+**Work:**
+- TextDocument, ReadingSession, VocabularyEntry, WordInteraction, WordExposure, GrammarExplanation, and AppSettings entities.
+- IndexedDB adapter and repositories, schema versioning, and an initial migration.
+- Transactional operations, unique indexes, and stable sentence IDs.
+- Separate API key storage.
+- Unit and integration tests for storage and migrations.
 
-**Приёмка:**
-- [ ] Сущности сохраняются и читаются.
-- [ ] Данные переживают перезагрузку страницы.
-- [ ] Ссылки между сущностями корректны.
-- [ ] Повторное выполнение операций не создаёт недопустимых дублей.
-- [ ] Транзакции и миграции протестированы.
-- [ ] Ключ отсутствует в экспортируемой модели учебных данных.
+**Acceptance:**
+- [ ] Entities can be saved and retrieved.
+- [ ] Data survives a page refresh.
+- [ ] Entity references remain valid.
+- [ ] Repeated operations do not create invalid duplicates.
+- [ ] Transactions and migrations are tested.
+- [ ] The key is absent from the exportable learning data model.
 
-**Результат:** слой persistence с тестами.
+**Outcome:** a tested persistence layer.
 
-## Этап 3. Генерация немецких текстов
+## Stage 3. German text generation
 
-**Цель:** первый целостный пользовательский сценарий.
+**Goal:** the first complete user workflow.
 
-**Работы:**
-- Главный экран: A1/A2/B1, 3/4/5 минут, кнопка генерации.
-- Англоязычный `src/prompts/text-generation.md` с параметрами CEFR, длительности, повторяемой лексики, разнообразия тем.
-- Запрос к OpenAI через AI Provider.
-- Структурированный ответ, runtime-валидация, ошибки, loading, запрет непреднамеренных дублирующихся запросов.
-- TextDocument сохраняется в IndexedDB.
-- Сегментация текста на предложения с устойчивыми ID.
-- Mock provider для тестов.
+**Work:**
+- Main screen: A1/A2/B1, 3/4/5 minutes, and a generation button.
+- English `src/prompts/text-generation.md` with CEFR, duration, review vocabulary, and topic diversity parameters.
+- OpenAI requests through the AI Provider.
+- Structured responses, runtime validation, errors, loading state, and prevention of unintended duplicate requests.
+- Save TextDocument in IndexedDB.
+- Segment texts into sentences with stable IDs.
+- A mock provider for tests.
 
-**Приёмка:**
-- [ ] Можно выбрать уровень и продолжительность.
-- [ ] Немецкий текст генерируется и отображается на смартфоне.
-- [ ] Документ сохраняется и открывается после перезагрузки.
-- [ ] Некорректные ответы и ошибки API обработаны.
-- [ ] Нет случайных параллельных генераций.
-- [ ] Ререндер не вызывает новых запросов.
+**Acceptance:**
+- [ ] The user can select a level and duration.
+- [ ] German text is generated and displayed on a smartphone.
+- [ ] The document is saved and can be opened after a refresh.
+- [ ] Invalid responses and API errors are handled.
+- [ ] No accidental parallel generations.
+- [ ] Re-rendering does not trigger new requests.
 
-**Результат:** генерируемые и сохраняемые тексты.
+**Outcome:** generated and persisted texts.
 
-## Этап 4. Перевод слов и словарь
+## Stage 4. Word translation and vocabulary
 
-**Цель:** интерактивное изучение слов.
+**Goal:** interactive vocabulary learning.
 
-**Работы:**
-- Короткое нажатие на отдельное слово.
-- Карточка: лемма, русский перевод в контексте, часть речи, род и артикль для существительных, грамматическая форма.
-- Англоязычный `src/prompts/word-translation.md`.
-- VocabularyEntry и история WordInteraction, кеш карточек.
-- Обработка нескольких значений, словоформ, отделяемых глаголов, многословных выражений.
-- Возможность отменить ошибочную отметку.
-- При ошибке AI не терять пользовательское действие и не портить словарь.
+**Work:**
+- A short tap on an individual word.
+- A card containing the lemma, Russian contextual translation, part of speech, gender and article for nouns, and grammatical form.
+- English `src/prompts/word-translation.md`.
+- VocabularyEntry, WordInteraction history, and cached cards.
+- Handle multiple meanings, inflected forms, separable verbs, and multiword expressions.
+- Allow an accidental mark to be undone.
+- AI errors must not lose the user action or corrupt vocabulary.
 
-**Приёмка:**
-- [ ] Tap открывает словарную карточку с контекстным переводом.
-- [ ] Незнакомое слово сохраняется между сеансами.
-- [ ] Повторные нажатия сохраняются как взаимодействия.
-- [ ] `ging` и `gehen` могут связываться с одной леммой.
-- [ ] Разные значения одного слова не смешиваются автоматически.
-- [ ] Кеш исключает лишний запрос.
-- [ ] Прокрутка не вызывает случайных переводов.
+**Acceptance:**
+- [ ] A tap opens a vocabulary card with a contextual translation.
+- [ ] Unfamiliar words persist between sessions.
+- [ ] Repeated taps are stored as interactions.
+- [ ] `ging` and `gehen` can be associated with the same lemma.
+- [ ] Different meanings of a word are not automatically merged.
+- [ ] Caching prevents unnecessary requests.
+- [ ] Scrolling does not trigger accidental translations.
 
-**Результат:** рабочий персональный словарь.
+**Outcome:** a working personal vocabulary.
 
-## Этап 5. Грамматический анализ
+## Stage 5. Grammar analysis
 
-**Цель:** объяснение грамматики выбранного предложения.
+**Goal:** explain the grammar of a selected sentence.
 
-**Работы:**
-- Long press около 500 мс на слово выбирает полное предложение.
-- Выделение предложения и панель объяснения на русском с учётом CEFR.
-- Объяснять конструкции, используемые формы и при необходимости примеры.
-- Англоязычный `src/prompts/grammar-explanation.md`.
-- Кеширование по предложению, уровню, модели, версии промпта.
-- Взаимоисключение tap и long press, отмена при прокрутке, отсутствие системного контекстного меню.
-- Доступная альтернативная точка входа в грамматический анализ.
+**Work:**
+- A long press of approximately 500 ms on a word selects the entire sentence.
+- Highlight the sentence and show an explanation panel in Russian appropriate to the CEFR level.
+- Explain constructions and forms, with examples when needed.
+- English `src/prompts/grammar-explanation.md`.
+- Cache by sentence, level, model, and prompt version.
+- Mutually exclusive tap/long press, cancellation during scrolling, and suppression of the system context menu.
+- An accessible alternative entry point for grammar analysis.
 
-**Приёмка:**
-- [ ] Long press выбирает целое предложение.
-- [ ] Грамматическое объяснение на русском соответствует уровню.
-- [ ] Long press не добавляет слово в словарь.
-- [ ] Прокрутка не запускает анализ.
-- [ ] Кеш не даёт повторного запроса без причины.
-- [ ] Альтернативный способ доступен.
-- [ ] Жесты проверены на реальном смартфоне.
+**Acceptance:**
+- [ ] A long press selects the entire sentence.
+- [ ] The Russian grammar explanation matches the level.
+- [ ] A long press does not add a word to the vocabulary.
+- [ ] Scrolling does not trigger analysis.
+- [ ] Caching prevents unnecessary repeat requests.
+- [ ] An alternative method is accessible.
+- [ ] Gestures are tested on a real smartphone.
 
-**Результат:** интерактивное объяснение грамматики.
+**Outcome:** interactive grammar explanations.
 
-## Этап 6. Сеансы чтения и адаптивное повторение
+## Stage 6. Reading sessions and adaptive repetition
 
-**Цель:** полный цикл обучения.
+**Goal:** a complete learning cycle.
 
-**Работы:**
-- StartReading, ResumeReading, CompleteReading.
-- Автосохранение отмеченных слов и позиции, восстановление прерванной сессии.
-- Явная кнопка «Завершить чтение».
-- Передавать активные неизвестные слова при следующей генерации.
-- Проверять реальное наличие слов в сгенерированном тексте.
-- При завершении: повторно отмеченные слова остаются Unknown; прежние Unknown, встреченные без отметки, становятся Learned; отсутствующие не меняются.
-- Новые слова не считаются Learned в том же сеансе.
-- WordExposure и WordInteraction сохраняют основания изменения статуса.
-- Атомарное и идемпотентное завершение.
+**Work:**
+- StartReading, ResumeReading, and CompleteReading.
+- Autosave marked words and reading position; recover interrupted sessions.
+- An explicit **Complete reading** button (the English translation of its Russian UI label).
+- Supply active unknown words to the next generation request.
+- Verify their actual presence in the generated text.
+- At completion: words marked again remain Unknown; previous Unknown words that occurred without a mark become Learned; absent words do not change.
+- New words do not count as Learned in the same session.
+- WordExposure and WordInteraction preserve the evidence for status changes.
+- Atomic and idempotent completion.
 
-**Приёмка:**
-- [ ] Прерванная сессия восстанавливается вместе с отметками.
-- [ ] Завершение фиксирует учебные результаты один раз.
-- [ ] Только действительно встреченные слова учитываются.
-- [ ] Повторно отмеченные остаются Unknown.
-- [ ] Ненажатые старые Unknown, встретившиеся в тексте, становятся Learned.
-- [ ] Новые слова не становятся Learned в той же сессии.
-- [ ] Следующая генерация получает активную лексику.
-- [ ] История объясняет каждое изменение состояния.
-- [ ] Переходы покрыты unit-тестами.
+**Acceptance:**
+- [ ] An interrupted session is restored with its marks.
+- [ ] Completion records learning results exactly once.
+- [ ] Only words that actually occurred are counted.
+- [ ] Words marked again remain Unknown.
+- [ ] Previous Unknown words that occurred without a tap become Learned.
+- [ ] New words do not become Learned in the same session.
+- [ ] The next generation request receives active vocabulary.
+- [ ] History explains each status change.
+- [ ] Unit tests cover transitions.
 
-**Результат:** работающий адаптивный алгоритм чтения.
+**Outcome:** a working adaptive reading algorithm.
 
-## Этап 7. История и экспорт/импорт
+## Stage 7. History and export/import
 
-**Цель:** приложение для ежедневного использования.
+**Goal:** an application suitable for daily use.
 
-**Работы:**
-- Список текстов: название, дата, CEFR, продолжительность, статус.
-- Просмотр завершённых и возобновление незавершённых.
-- Просмотр завершённых текстов без изменения прогресса.
-- Версионированный JSON экспорт: тексты, сеансы, словарь, взаимодействия, повторения и сохранённые объяснения.
-- API key не экспортировать.
-- Импорт: валидация схемы, версии и связей; безопасный restore.
-- В MVP возможна полная замена локальных данных после подтверждения.
+**Work:**
+- Text list: title, date, CEFR level, duration, and status.
+- View completed texts and resume unfinished ones.
+- View completed texts without changing progress.
+- Versioned JSON export: texts, sessions, vocabulary, interactions, exposures, and saved explanations.
+- Exclude the API key from exports.
+- Import: validate the schema, version, and references; restore safely.
+- The MVP may replace all local data after confirmation.
 
-**Приёмка:**
-- [ ] История отображает тексты и состояния.
-- [ ] Незавершённое чтение возобновляется.
-- [ ] Просмотр завершённого текста не меняет прогресс.
-- [ ] Экспорт создаёт правильный JSON без ключа.
-- [ ] Импорт восстанавливает учебные данные.
-- [ ] Некорректный файл не повреждает существующую базу.
-- [ ] Export/import покрыты тестами.
+**Acceptance:**
+- [ ] History shows texts and statuses.
+- [ ] Unfinished reading can be resumed.
+- [ ] Viewing completed texts does not change progress.
+- [ ] Export produces valid JSON without the key.
+- [ ] Import restores learning data.
+- [ ] Invalid files do not damage the existing database.
+- [ ] Tests cover export/import.
 
-**Результат:** история и резервное копирование.
+**Outcome:** history and backups.
 
-## Этап 8. Стабилизация MVP
+## Stage 8. MVP stabilization
 
-**Цель:** готовность к повседневному использованию на телефоне.
+**Goal:** readiness for daily use on a phone.
 
-**Работы:**
-- Проверить читаемость текста, масштабирование, карточки, управление одной рукой.
-- Проверить tap/long press и прокрутку на Android Chrome.
-- Проверить загрузки, ошибки сети, потерю интернета.
-- Проверить восстановление после закрытия/выгрузки браузера.
-- Проверить производительность на большой истории.
-- Исключить дубли AI-запросов.
-- Проверить экспорт/импорт и обновление приложения.
-- Актуализировать документацию и GitHub Pages.
+**Work:**
+- Check text readability, scaling, cards, and one-handed operation.
+- Test tap/long press and scrolling in Android Chrome.
+- Test loading, network errors, and loss of connectivity.
+- Test recovery after browser closure or unload.
+- Check performance with a large history.
+- Eliminate duplicate AI requests.
+- Check export/import and application updates.
+- Update documentation and GitHub Pages.
 
-**Приёмка:**
-- [ ] TypeScript, lint, unit и integration tests проходят.
-- [ ] Ключевые E2E-сценарии проходят.
-- [ ] На реальном телефоне проверены жесты.
-- [ ] Восстановление сессии и backup работают.
-- [ ] Обновление не теряет пользовательские данные.
-- [ ] Секретов нет в коде и артефактах.
-- [ ] Документация соответствует реализации.
-- [ ] GitHub Pages опубликован и работает.
+**Acceptance:**
+- [ ] TypeScript, lint, unit, and integration tests pass.
+- [ ] Key E2E scenarios pass.
+- [ ] Gestures are tested on a real phone.
+- [ ] Session recovery and backups work.
+- [ ] Updates do not lose user data.
+- [ ] Code and artifacts contain no secrets.
+- [ ] Documentation matches the implementation.
+- [ ] GitHub Pages is deployed and working.
 
-**Результат:** стабильный MVP.
+**Outcome:** a stable MVP.
 
 ---
 
 ## Definition of Done
 
-Этап можно считать завершённым только если:
+A stage is complete only when:
 
-1. Реализованы согласованные требования этапа.
-2. Код собирается и применимые тесты проходят.
-3. Нет известных критических ошибок.
-4. Изменения данных сопровождаются миграциями.
-5. Изменения логики сопровождены тестами.
-6. Соответствующая документация обновлена.
-7. Старые возможности продолжают работать.
-8. Codex сообщает результаты проверок и ограничения.
+1. The agreed stage requirements are implemented.
+2. Code builds and applicable tests pass.
+3. No known critical errors remain.
+4. Data changes include migrations.
+5. Logic changes include tests.
+6. Relevant documentation is updated.
+7. Existing functionality continues to work.
+8. Codex reports verification results and limitations.
 
-Если проверки не выполнены, назвать этап незавершённым и объяснить, что остаётся.
+If checks have not been performed, describe the stage as incomplete and explain what remains.
 
-## Процедура добавления будущих функций
+## Procedure for adding future features
 
-При новой функции определить: пользовательский сценарий, затрагиваемые модули, изменения домена и модели данных, миграции, контракты AI/промпты, риски совместимости, автоматические тесты и критерии приёмки. Реализовать минимальное решение, не строить универсальные механизмы без потребности.
+For each new feature, identify the user workflow, affected modules, Domain/data model changes, migrations, AI/prompt contracts, compatibility risks, automated tests, and acceptance criteria. Implement the smallest sufficient solution; do not build universal mechanisms without a concrete need.
 
-## Первая инструкция Codex
+## Initial instruction for Codex
 
-Прочитай `docs/requirements.md` и этот план. Начни **только с этапа 0**. Проверь работу статического GitHub Pages приложения и OpenAI API непосредственно из браузера телефона. Не выполняй последующие этапы. После этапа 0 предоставь отчёт о критериях приёмки и остановись до подтверждения пользователя.
+Read `docs/requirements.md` and this plan. Start **only with stage 0**. Verify the static GitHub Pages application and direct OpenAI API requests from a phone browser. Do not implement later stages. After stage 0, report the acceptance criteria and stop until the user confirms acceptance.

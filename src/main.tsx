@@ -9,6 +9,11 @@ if (!root) throw new Error('Не найден контейнер приложе�
 const services = createServices();
 createRoot(root).render(
   <StrictMode>
-    <App settings={services.settings} />
+    <App
+      settings={services.settings}
+      generation={services.generation}
+      words={services.words}
+      grammar={services.grammar}
+    />
   </StrictMode>,
 );

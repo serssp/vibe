@@ -42,7 +42,8 @@ label {
   font-weight: 600;
   margin: 1rem 0 0.4rem;
 }
-input {
+input,
+select {
   font: inherit;
   width: 100%;
   min-width: 0;
@@ -102,4 +103,102 @@ button:disabled {
 :focus-visible {
   outline: 3px solid #c27820;
   outline-offset: 3px;
+}
+
+.generation-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.reader-text {
+  font-size: 1.25rem;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.settings-details {
+  margin-top: 2rem;
+}
+summary {
+  cursor: pointer;
+  min-height: 48px;
+  padding: 0.65rem 0;
+  font-weight: 600;
+}
+
+.word {
+  cursor: pointer;
+  border-radius: 0.2rem;
+  padding-block: 0.15rem;
+}
+.reader-text {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: pan-y pinch-zoom;
+}
+.sentence {
+  border-radius: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+.sentence.selected {
+  background: #fff1c5;
+  box-shadow: 0 0 0 0.3rem #fff1c5;
+}
+.sentence-analysis {
+  font-size: 0.85rem;
+  margin-bottom: 0.6rem;
+}
+.analysis-panel {
+  position: fixed;
+  z-index: 10;
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 1.5rem), 40rem);
+  max-height: 65dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  border: 2px solid #496657;
+  border-radius: 1rem;
+  box-shadow: 0 0.5rem 2rem #253a3233;
+  padding: 1rem;
+  overflow-wrap: anywhere;
+}
+.learning-card {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+blockquote {
+  border-left: 3px solid #496657;
+  margin: 1rem 0;
+  padding-left: 0.75rem;
+}
+.word-meaning {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.pending-lookup {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.vocabulary-list {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d8ded7;
+  border-radius: 1rem;
+  background: #fff;
+  margin-top: 1.5rem;
+}
+.vocabulary-list li {
+  margin-block: 0.75rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 340px) {
+  .generation-options {
+    grid-template-columns: 1fr;
+  }
 }

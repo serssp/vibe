@@ -1,14 +1,14 @@
-# Правила работы
+# Working rules
 
-- Прочитать `docs/requirements.md` и `docs/implementation-plan.md` перед изменениями.
-- Реализовывать только явно запрошенный этап. После отчёта остановиться; следующий этап требует приёмки пользователя.
-- Текущий объём: только этап 1, архитектурный каркас. Этап 0 принят пользователем. Reader, Vocabulary, Grammar и History получают только каталоги с описанием границ; учебные функции и IndexedDB относятся к последующим этапам.
-- TypeScript strict. Не писать комментарии в исходном коде.
-- UI получает сценарии через props и не импортирует Infrastructure. Application зависит только от своих портов и Domain. Domain не зависит от React, SDK и browser API. Конкретные адаптеры создаются только в `src/app/create-services.ts`. Не добавлять backend без согласования.
-- Промпты на английском, отдельными файлами. Документировать назначение и версию.
-- Никогда не включать API key в Git, сборки, URL, логи или экспорт. Не выводить сырые ответы ошибок API.
-- В автоматических тестах использовать mock provider или mock transport. Реальный запрос выполняется только явным действием пользователя.
-- Обязательные проверки: `npm run check` и `npm run test:browser`. Отдельные команды: typecheck, lint, format:check, check:architecture, test, build. Эти же проверки выполняются в CI перед публикацией.
-- В отчёте отделять автоматические mock-проверки от реального OpenAI, опубликованного CI и Android Chrome. Невыполненные критерии означают, что этап не принят.
-- Существующие localStorage-имена ключа и модели не менять. Учебные сущности и миграции относятся к этапу 2. Не создавать пустые реализации, универсальный CRUD или дублирующие документы.
-- Форматирование: Prettier и EditorConfig. Требования и план не переформатировать. Описание слоёв и текущих решений поддерживать в `docs/architecture.md`.
+- Read `docs/requirements.md` and `docs/implementation-plan.md` before making changes.
+- Implement only the explicitly requested stage. Stop after the report; the next stage requires user acceptance.
+- Current scope: stages 3–5, explicitly authorized together by the user. Stages 0–2 have been accepted. Implement generation, vocabulary lookup, and grammar in order and report all three; no intermediate approval is needed for this authorized batch. Adaptive repetition/completion, history UI, and import/export remain stages 6–7.
+- TypeScript strict. Do not write comments in source code.
+- UI receives use cases through props and does not import Infrastructure. Application depends only on its ports and Domain. Domain does not depend on React, SDKs, or browser APIs. Create concrete adapters only in `src/app/create-services.ts`. Do not add a backend without agreement.
+- Write project Markdown documentation and AI prompts in English. Keep prompts in separate files and document their purpose and version.
+- Never include the API key in Git, builds, URLs, logs, or exports. Do not display raw API error responses.
+- Use a mock provider or mock transport in automated tests. Make real requests only through an explicit user action.
+- Required checks: `npm run check` and `npm run test:browser`. Individual commands: typecheck, lint, format:check, check:architecture, test, and build. CI runs the same checks before deployment.
+- Reports must distinguish automated mock checks from real OpenAI requests, deployed CI, and Android Chrome verification. Unverified criteria mean the stage has not been accepted.
+- Preserve the existing localStorage key and model names. Learning schema changes require ordered migrations and rollback tests. Keep the API key outside learning data; reject invalid records and references atomically. Do not create empty implementations, universal CRUD, or duplicate documents.
+- Formatting: Prettier and EditorConfig. Do not reformat the requirements or implementation plan. Maintain the description of layers and current decisions in `docs/architecture.md`.

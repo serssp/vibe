@@ -1,3 +1,3 @@
 # Vocabulary
 
-Граница Presentation для словарной карточки и списка слов. Реализация относится к этапу 4. Зависимости: Application и Domain; отметки и переводы выполняются через Application. Прямые зависимости от других features, API и хранилищ запрещены.
+Stage 4 Presentation: VocabularyCard shows the contextual Russian meaning, lemma, article/gender, part of speech and form/expression explanation with undo. VocabularyList displays entries with active marks, preserving distinct meanings. Requests, durable pending intents, cache and atomic mark/undo are handled by Application/Infrastructure. Dependencies: Application and Domain; no direct feature imports or IO.

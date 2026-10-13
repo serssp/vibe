@@ -1,164 +1,166 @@
 # German Learning App — Technical Specification
 
-**Версия:** 0.5  
-**Статус:** Draft  
-**Назначение:** основной документ требований для Codex.
+**Version:** 0.5\
+**Status:** Draft\
+**Purpose:** the primary requirements document for Codex.
 
-## 1. Цель и границы продукта
+English UI labels in this document are translations of the Russian labels. Translating this document does not request a change to the application's UI language.
 
-Персональное веб-приложение для изучения немецкого языка через адаптивное чтение, развитие понимания, расширение словарного запаса и изучение грамматики.
+## 1. Product goal and scope
 
-- Один пользователь; регистрация, авторизация и многопользовательский режим не нужны.
-- Генерация связных немецких текстов уровня A1, A2 или B1.
-- Продолжительность чтения на выбор: 3, 4 или 5 минут.
-- Короткое нажатие на слово — словарная карточка с переводом на русский.
-- Долгое нажатие на предложение — объяснение грамматики на русском.
-- Нажатия на незнакомые слова формируют персональный словарь; слова по возможности повторяются в следующих текстах.
-- Пользователь завершает чтение отдельной кнопкой.
-- Хранятся тексты, сеансы чтения, словарь, события и история.
-- Набор функций будет постепенно расширяться, но будущие функции не реализовываются преждевременно.
+A personal web application for learning German through adaptive reading, comprehension practice, vocabulary development, and grammar study.
 
-## 2. Платформа и технологические ограничения
+- One user; registration, authentication, and multi-user support are not required.
+- Generate coherent German texts at A1, A2, or B1 level.
+- Choose a reading duration of 3, 4, or 5 minutes.
+- A short tap on a word opens a vocabulary card with a Russian translation.
+- A long press on a sentence opens a grammar explanation in Russian.
+- Tapping unfamiliar words builds a personal vocabulary; those words should recur in subsequent texts where possible.
+- The user completes reading with a dedicated button.
+- Store texts, reading sessions, vocabulary, events, and history.
+- Features will expand gradually; do not implement future features prematurely.
 
-- Только веб-приложение, оптимизированное для смартфона (mobile-first).
-- Основной браузер — Android Chrome; совместимость с iOS Safari по возможности.
-- Хостинг: GitHub Pages, статические HTML/CSS/JS, публикация через GitHub Actions.
-- Поддерживать адрес сайта с подпутём репозитория (например, /vibe/).
-- Backend и серверная БД для MVP не нужны.
-- TypeScript с включённым strict mode; компонентный UI, доступный для тестирования.
-- Codex полностью генерирует и изменяет код; пользователь задаёт требования и тестирует.
-- Не писать комментарии в исходном коде. Документировать важные решения отдельно.
-- Использовать простые распространённые технологии и избегать неоправданной инфраструктуры.
+## 2. Platform and technology constraints
 
-## 3. OpenAI и промпты
+- Web application only, optimized for smartphones (mobile-first).
+- Primary browser: Android Chrome; support iOS Safari where possible.
+- Hosting: GitHub Pages, static HTML/CSS/JS, deployed through GitHub Actions.
+- Support a repository subpath in the site URL, such as /vibe/.
+- No backend or server-side database is required for the MVP.
+- TypeScript with strict mode enabled; a component-based, testable UI.
+- Codex generates and modifies all code; the user defines requirements and tests the application.
+- Do not write comments in source code. Document important decisions separately.
+- Use simple, widely adopted technologies and avoid unnecessary infrastructure.
 
-### 3.1. Доступ к API
+## 3. OpenAI and prompts
 
-- Пользователь вводит OpenAI API key в настройках приложения.
-- Для MVP допускаются прямые запросы из браузера; пользователь осознанно принимает риск компрометации ключа.
-- Ключ сохраняется локально между сеансами, может быть заменён или удалён.
-- Ключ никогда не включается в исходники, Git, URL, логи, экспорт данных или build artifacts.
-- Желательно использовать отдельно созданный ключ с доступными ограничениями бюджета/расходов.
-- Модель OpenAI должна быть конфигурируемой.
-- Архитектура должна позволять заменить browser-side API на backend proxy без изменения домена и UI.
+### 3.1. API access
+
+- The user enters an OpenAI API key in the application settings.
+- Direct browser requests are permitted for the MVP; the user knowingly accepts the risk of key compromise.
+- Persist the key locally between sessions; allow it to be replaced or deleted.
+- Never include the key in source code, Git, URLs, logs, data exports, or build artifacts.
+- Prefer a separately created key with any available budget or spending limits.
+- The OpenAI model must be configurable.
+- The architecture must allow replacing the browser-side API with a backend proxy without changing Domain or UI.
 
 ### 3.2. AI Provider
 
-Все запросы проходят через единый AI Provider. Его обязанности: сбор контекста, выбор модели, HTTP/SDK, отмена запросов, таймауты, ограниченные retries, исключение дубликатов, обработка ошибок, валидация ответа. UI и домен не вызывают OpenAI напрямую. Ошибки AI не должны портить локальные данные.
+All requests go through a single AI Provider. Its responsibilities include collecting context, selecting the model, HTTP/SDK access, request cancellation, timeouts, limited retries, deduplication, error handling, and response validation. UI and Domain must not call OpenAI directly. AI errors must not corrupt local data.
 
-### 3.3. Реестр промптов
+### 3.3. Prompt registry
 
-Все промпты написаны **на английском языке** и хранятся отдельно от бизнес-логики:
+All prompts are written **in English** and stored separately from business logic:
 
 - `src/prompts/text-generation.md`
 - `src/prompts/word-translation.md`
 - `src/prompts/grammar-explanation.md`
 
-Для каждого промпта определить назначение, входные параметры, формат результата, ограничения и версию. Файлы промптов версионируются в Git. Сохранять модель и версию промпта вместе с созданными текстами/объяснениями. Предпочитать Structured Outputs с JSON Schema и runtime-валидацией.
+Define each prompt's purpose, input parameters, output format, constraints, and version. Version prompt files in Git. Store the model and prompt version with generated texts and explanations. Prefer Structured Outputs with JSON Schema and runtime validation.
 
-### 3.4. Экономичность и отказы
+### 3.4. Cost efficiency and failures
 
-- Кешировать успешные переводы и грамматические объяснения.
-- Не создавать AI-запросы на повторном рендеринге.
-- Не допускать неконтролируемых retries и параллельных запросов по одному действию.
-- Показывать индикатор выполнения, понятные ошибки, возможность повторить запрос.
-- Считать использование токенов, если данные предоставляет API; не раскрывать ключ в диагностике.
+- Cache successful translations and grammar explanations.
+- Do not create AI requests on re-render.
+- Prevent uncontrolled retries and parallel requests for the same action.
+- Show progress indicators, understandable errors, and an option to retry.
+- Track token usage when the API provides it; do not expose the key in diagnostics.
 
-## 4. Генерация текстов
+## 4. Text generation
 
-Пользователь выбирает уровень **A1, A2, B1** и продолжительность **3, 4, 5 минут**, затем нажимает «Сгенерировать текст».
+The user selects **A1, A2, or B1** and a duration of **3, 4, or 5 minutes**, then presses **Generate text**.
 
-Текст должен быть естественным, связным и интересным, с подходящими уровню лексикой и грамматикой; объём приблизительно соответствует времени чтения. Темы разнообразны, без навязчивого повторения одного сюжета. По возможности включать активные незнакомые слова, органично и в подходящем значении. Перевод не вставлять в сам немецкий текст.
+The text must be natural, coherent, and interesting, with vocabulary and grammar appropriate to the selected level. Its length should roughly match the reading duration. Vary topics without repeatedly using the same storyline. Where possible, include active unfamiliar words naturally and with the appropriate meaning. Do not insert translations into the German text itself.
 
-AI получает CEFR, целевую продолжительность, слова для повторения и при необходимости сведения о недавних темах. Генерация возвращает валидируемый структурированный документ. Сегментировать предложения, присваивая им устойчивые ID.
+AI receives the CEFR level, target duration, vocabulary for review, and recent topics when needed. Generation returns a structured document that can be validated. Segment the text into sentences with stable IDs.
 
-**Важно:** слово считается повторённым только если его присутствие в фактически созданном тексте подтверждено, а не только по факту передачи AI в промпт. Неоднозначные сопоставления не учитывать автоматически.
+**Important:** a word counts as repeated only when its presence in the actual generated text is confirmed, not merely because it was supplied to AI in the prompt. Do not automatically count ambiguous matches.
 
-## 5. Интерактивное чтение
+## 5. Interactive reading
 
 ### 5.1. Reader
 
-Читаемый текст с крупной типографикой, достаточным межстрочным интервалом, адаптивной шириной, обычной вертикальной прокруткой, поддержкой системного увеличения шрифта. Позицию и пользовательские действия автоматически сохранять; незавершённое чтение восстанавливать после обновления/выгрузки браузера.
+Provide readable text with large typography, sufficient line spacing, adaptive width, normal vertical scrolling, and support for system font scaling. Automatically save the reading position and user actions; restore unfinished reading after a page refresh or browser unload.
 
-### 5.2. Tap: перевод слова
+### 5.2. Tap: word translation
 
-Короткое нажатие на слово открывает карточку на текущем экране:
+A short tap on a word opens a card on the current screen containing:
 
-- лемма;
-- перевод на русский и значение в данном контексте;
-- часть речи;
-- для существительного: артикль и род;
-- при необходимости информация о форме слова.
+- the lemma;
+- its Russian translation and meaning in the current context;
+- its part of speech;
+- for a noun: its article and grammatical gender;
+- information about the word form when needed.
 
-Нажатие означает, что пользователь слово не знает или не помнит. Сохранять событие, связывая словарную запись с конкретной формой и предложением. Повторное нажатие фиксируется. Не объединять разные значения одного написания без проверки. Учитывать инфлексию, отделяемые глаголы и многословные выражения. Предусмотреть отмену ошибочного нажатия.
+A tap means that the user does not know or cannot remember the word. Record the event and associate the vocabulary entry with the specific surface form and sentence. Record repeated taps. Do not merge different meanings of the same spelling without verification. Account for inflection, separable verbs, and multiword expressions. Allow an accidental tap to be undone.
 
-### 5.3. Long press: объяснение грамматики
+### 5.3. Long press: grammar explanation
 
-Удержание примерно 500 мс в пределах предложения выбирает предложение целиком, визуально выделяет его и открывает грамматический разбор на русском языке.
+Holding for approximately 500 ms within a sentence selects the entire sentence, highlights it, and opens a grammar analysis in Russian.
 
-- Объяснить использованные конструкции и почему формы употреблены именно так.
-- Указать соответствующие части предложения.
-- Соответствовать выбранному CEFR, не перегружать терминологией.
-- При необходимости привести короткие немецкие примеры с переводом.
-- Грамматическое действие **не** добавляет слова в словарь.
-- Кешировать объяснения с учётом текста, предложения, уровня, модели и версии промпта.
+- Explain the constructions used and why the particular forms occur.
+- Identify the relevant parts of the sentence.
+- Match the selected CEFR level without excessive terminology.
+- Provide short German examples with translations when needed.
+- A grammar action does **not** add words to the vocabulary.
+- Cache explanations based on text, sentence, level, model, and prompt version.
 
-Tap и long press взаимоисключающи; long press не должен дополнительно запускать словарь. При движении пальца/прокрутке распознавание отменяется. Избегать системного контекстного меню в интерактивной зоне, не ломая прокрутку. Предусмотреть доступный альтернативный способ запуска разбора предложения.
+Tap and long press are mutually exclusive; a long press must not also trigger a vocabulary lookup. Cancel gesture recognition when the finger moves or scrolling starts. Avoid the system context menu in the interactive area without disrupting scrolling. Provide an accessible alternative for requesting a sentence analysis.
 
-**Согласованный основной UI:** короткое нажатие — слово, долгое — предложение. Идея отдельного переключателя режимов была предложена, но **не утверждена**, поэтому не заменять жесты переключателем без согласования.
+**Agreed primary UI:** short tap for a word, long press for a sentence. A separate mode toggle was proposed but **not approved**; do not replace these gestures with a toggle without agreement.
 
-## 6. Сеансы чтения и обучение
+## 6. Reading sessions and learning
 
-Каждое чтение — ReadingSession со статусом New, InProgress или Completed, ссылкой на TextDocument, временем начала/окончания и сохранённой позицией. В MVP достаточно одного активного сеанса для текста. Запросы AI могут выполняться по требованию; выполнение AI-запросов не должно блокировать автосохранение.
+Each reading is a ReadingSession with status New, InProgress, or Completed, a reference to a TextDocument, start/end times, and a saved position. One active session per text is sufficient for the MVP. AI requests may run on demand; they must not block autosave.
 
-Под текстом располагается кнопка **«Завершить чтение»**.
+Place a **Complete reading** button below the text.
 
-Алгоритм MVP при завершении:
+MVP completion algorithm:
 
-1. Пометить сеанс Completed и зафиксировать время.
-2. Определить ранее незнакомые слова, достоверно встретившиеся в этом тексте.
-3. Если пользователь нажимал на слово в текущем сеансе, оно остаётся Unknown.
-4. Если ранее незнакомое слово встретилось, но не было нажато, оно становится Learned.
-5. Если слово не встретилось, его статус не меняется.
-6. Слово, впервые отмеченное в текущем сеансе, не может стать Learned при завершении того же сеанса.
-7. Learned-слово может снова стать Unknown при следующем явном нажатии.
-8. Фиксировать историю взаимодействий и повторений отдельно от вычисленного статуса.
+1. Mark the session Completed and record its completion time.
+2. Identify previously unfamiliar words that reliably occurred in this text.
+3. If the user tapped a word in the current session, it remains Unknown.
+4. If a previously unfamiliar word occurred but was not tapped, it becomes Learned.
+5. If a word did not occur, its status does not change.
+6. A word first marked in the current session cannot become Learned when that same session is completed.
+7. A Learned word may become Unknown again after a subsequent explicit tap.
+8. Record interaction and repetition history separately from the computed status.
 
-Операция завершения и связанные изменения учебного состояния должны быть атомарными и идемпотентными. Повторное нажатие «Завершить» не должно повторно начислять результаты. Незавершённый сеанс не засчитывает неотмеченные слова как усвоенные.
+Session completion and related learning-state changes must be atomic and idempotent. Repeated presses of **Complete** must not award results again. An unfinished session must not count untapped words as learned.
 
-В будущем допускается более строгий алгоритм закрепления слов, поэтому хранить факты/историю, а не только поле состояния.
+A stricter vocabulary consolidation algorithm may be introduced later, so store facts and history rather than only a state field.
 
-## 7. История
+## 7. History
 
-Показывать список последних сгенерированных текстов: название, дату, CEFR, продолжительность и статус чтения. Предоставлять просмотр ранее созданных текстов и продолжение незавершённых сеансов. Хранить историю без фиксированного лимита, насколько допускает локальное хранилище.
+Show recent generated texts with title, date, CEFR level, duration, and reading status. Allow previously generated texts to be viewed and unfinished sessions to be resumed. Store history without a fixed limit, subject to local storage capacity.
 
-Повторное открытие завершённого текста для просмотра **не** изменяет ранее вычисленный прогресс; новый учебный сеанс требует отдельного явного действия. История документов и история сеансов — разные сущности.
+Reopening a completed text for viewing does **not** change previously computed progress; starting a new learning session requires a separate explicit action. Document history and session history are distinct entities.
 
-## 8. Архитектура
+## 8. Architecture
 
-### 8.1. Стиль
+### 8.1. Style
 
-**Модульный frontend-монолит** с уровнями:
+A **modular frontend monolith** with these layers:
 
-- **Presentation:** компоненты, навигация, жесты, состояние UI, отображение.
-- **Application:** сценарии GenerateText, LookupWord, ExplainGrammar, StartReading, ResumeReading, CompleteReading, ExportData, ImportData.
-- **Domain:** модели и правила словаря, повторения, событий, завершения сеансов.
-- **Infrastructure:** AI adapter, IndexedDB adapter, Prompt Registry, импорт/экспорт, локальная диагностика.
+- **Presentation:** components, navigation, gestures, UI state, and rendering.
+- **Application:** GenerateText, LookupWord, ExplainGrammar, StartReading, ResumeReading, CompleteReading, ExportData, and ImportData use cases.
+- **Domain:** models and rules for vocabulary, repetition, events, and session completion.
+- **Infrastructure:** AI adapter, IndexedDB adapter, Prompt Registry, import/export, and local diagnostics.
 
-Обязательные границы:
+Required boundaries:
 
-- UI не обращается напрямую к OpenAI или IndexedDB.
-- Domain не зависит от UI-фреймворка, OpenAI SDK, IndexedDB и инфраструктуры.
-- Infrastructure реализует интерфейсы для прикладных сценариев.
-- Нет циклических зависимостей.
-- Не создавать microservices, event bus или plugin framework без конкретной потребности.
-- Использовать shared-модули только для реально общей логики.
+- UI must not access OpenAI or IndexedDB directly.
+- Domain must not depend on a UI framework, OpenAI SDK, IndexedDB, or Infrastructure.
+- Infrastructure implements interfaces used by application use cases.
+- No circular dependencies.
+- Do not introduce microservices, an event bus, or a plugin framework without a concrete need.
+- Use shared modules only for logic shared by multiple parts of the application.
 
-### 8.2. Предлагаемые модули
+### 8.2. Suggested modules
 
-Reader, Vocabulary, Grammar, History, Settings, Learning Domain, AI Provider, Storage. Codex может изменить расположение исходников, сохранив эти границы.
+Reader, Vocabulary, Grammar, History, Settings, Learning Domain, AI Provider, and Storage. Codex may change the source layout while preserving these boundaries.
 
-Предлагаемая структура:
+Suggested structure:
 
 ```text
 src/
@@ -189,20 +191,20 @@ docs/
   adr/
 ```
 
-## 9. Модель данных
+## 9. Data model
 
-Все сущности имеют устойчивые ID; метки времени стандартизованы (ISO 8601/UTC); отношения задаются ID. Структура IndexedDB и экспорта версионируется.
+All entities have stable IDs; timestamps use ISO 8601/UTC; relationships use IDs. Version the IndexedDB schema and export format.
 
 ### TextDocument
 
-- `id`: уникальный ID.
-- `title`, `content`: название и полный немецкий текст.
-- `sentences`: последовательность предложений с устойчивыми ID.
+- `id`: unique ID.
+- `title`, `content`: title and full German text.
+- `sentences`: ordered sentences with stable IDs.
 - `cefrLevel`: A1/A2/B1.
-- `targetDuration`: 3/4/5 минут.
+- `targetDuration`: 3/4/5 minutes.
 - `createdAt`, `aiModel`, `promptVersion`.
-- `targetVocabularyIds`: слова, отправленные модели для повторения.
-- `includedVocabularyIds`: достоверно обнаруженные в тексте слова.
+- `targetVocabularyIds`: words sent to the model for review.
+- `includedVocabularyIds`: words reliably detected in the text.
 
 ### ReadingSession
 
@@ -210,20 +212,20 @@ docs/
 - `status`: New/InProgress/Completed.
 - `startedAt`, `completedAt`.
 - `readingPosition`.
-- `reviewCandidateIds`: активные словарные записи, подлежащие проверке в этом сеансе.
+- `reviewCandidateIds`: active vocabulary entries to review in this session.
 
 ### VocabularyEntry
 
 - `id`, `lemma`, `partOfSpeech`, `article`.
-- `meaningRu`, `senseKey` для различных значений.
-- `status`: Unknown/Learned — вычисляемое состояние.
+- `meaningRu`, `senseKey` for distinct meanings.
+- `status`: Unknown/Learned — computed state.
 - `createdAt`, `lastMarkedAt`, `unknownCount`, `exposureCount`.
 
-Не использовать одно лишь написание слова как уникальный ключ: различать леммы, формы, значения, отделяемые глаголы и устойчивые сочетания.
+Do not use spelling alone as the unique key: distinguish lemmas, surface forms, meanings, separable verbs, and fixed expressions.
 
 ### WordInteraction
 
-Неизменяемый факт конкретного действия пользователя:
+An immutable record of a specific user action:
 
 - `id`, `sessionId`, `textId`, `vocabularyEntryId`.
 - `surfaceForm`, `sentenceId`.
@@ -232,133 +234,133 @@ docs/
 
 ### WordExposure
 
-Подтверждённая встреча изучаемого слова в завершённом сеансе:
+A confirmed occurrence of a studied word in a completed session:
 
 - `id`, `sessionId`, `vocabularyEntryId`.
 - `markedUnknown`, `occurredAt`.
 
-Не более одной записи на пару sessionId/vocabularyEntryId; создавать при завершении только для фактически подтверждённых повторений.
+At most one entry per sessionId/vocabularyEntryId pair; create it at completion only for confirmed repetitions.
 
 ### GrammarExplanation
 
 - `id`, `textId`, `sentenceId`, `cefrLevel`.
-- `explanation` (структурированные правила и примеры).
+- `explanation` (structured rules and examples).
 - `aiModel`, `promptVersion`, `createdAt`.
 
 ### AppSettings
 
-Предпочтения по CEFR, продолжительности, модели AI и настройкам интерфейса. API key хранится отдельно от экспортируемых учебных данных.
+Preferences for CEFR level, duration, AI model, and UI settings. Store the API key separately from exportable learning data.
 
-### Инварианты
+### Invariants
 
-- Повторное завершение сеанса не создаёт повторных результатов.
-- Новые слова не становятся Learned в своём первом сеансе.
-- Статус изменения слова можно объяснить сохранёнными событиями.
-- Отсутствующие в тексте слова не получают WordExposure.
-- Отказ AI или удаление кеша не меняет историю обучения.
-- Сохранённые тексты не изменяются при изменении промптов.
-- Учебные результаты и завершение сеанса записываются атомарно.
+- Completing a session again does not produce duplicate results.
+- New words do not become Learned in their first session.
+- Stored events explain changes to a word's status.
+- Words absent from the text do not receive WordExposure records.
+- AI failure or cache deletion does not change learning history.
+- Stored texts do not change when prompts change.
+- Learning results and session completion are written atomically.
 
-## 10. Persistence и восстановление
+## 10. Persistence and recovery
 
-- **IndexedDB:** документы, сеансы, словарь, взаимодействия, повторения, объяснения.
-- **localStorage допустим:** небольшие настройки и введённый пользователем API key.
-- Отметку слова сохранять немедленно; позицию — периодически.
-- Обновление приложения не должно удалять данные.
-- Для новой схемы нужна миграция и автоматические тесты.
-- Ошибка миграции не должна молча сбрасывать старую БД.
-- Экспортировать версионированный JSON со всеми учебными данными, но без API key.
-- Импортировать после проверки схемы, версии и целостности связей; ошибочный импорт не должен повреждать существующие данные.
-- В MVP допустим полный restore с заменой локальных данных после подтверждения.
-- Синхронизация устройств не нужна: приложение будет использоваться на одном телефоне.
-- Пользователь принимает риск потери локальных данных при очистке браузера или утрате устройства.
+- **IndexedDB:** documents, sessions, vocabulary, interactions, exposures, and explanations.
+- **localStorage is permitted:** small settings and the API key entered by the user.
+- Save word marks immediately; save the reading position periodically.
+- Application updates must not delete data.
+- New schemas require migrations and automated tests.
+- A migration failure must not silently reset the old database.
+- Export versioned JSON containing all learning data, excluding the API key.
+- Import only after validating the schema, version, and referential integrity; an invalid import must not damage existing data.
+- The MVP may support full restore by replacing local data after confirmation.
+- Device synchronization is not required: the application will be used on one phone.
+- The user accepts the risk of losing local data when clearing browser storage or losing the device.
 
-## 11. Нефункциональные требования
+## 11. Nonfunctional requirements
 
-### Производительность
+### Performance
 
-- Локальные действия должны быть отзывчивыми; сохранённые тексты открываются без новых AI-запросов.
-- Сеть не блокирует UI; показывать загрузку и понятную ошибку.
-- При повторном запросе использовать кеш, если параметры совпадают.
-- Ограничивать параллельные запросы и число retries.
+- Local actions must remain responsive; opening saved texts must not create new AI requests.
+- Network operations must not block UI; show loading state and understandable errors.
+- Reuse cached results when request parameters match.
+- Limit parallel requests and retries.
 
-### Надёжность
+### Reliability
 
-- Перезагрузка/выгрузка браузера не должны терять уже сохранённые слова и сеансы.
-- Все изменения учебного прогресса согласованы и повторно выполняются безопасно.
-- Миграции, импорт и частичные сетевые ошибки не должны повреждать данные.
+- Page refresh or browser unload must not lose saved words or sessions.
+- Learning-progress changes must be consistent and safe to repeat.
+- Migrations, imports, and partial network failures must not corrupt data.
 
-### Безопасность
+### Security
 
-- Browser-side API key считается риском, а не защищённым секретом.
-- Не хранить ключ в репозитории, сборке, URL, логах, экспортах.
-- Не рендерить сгенерированный AI HTML как доверенный; предотвращать XSS.
-- Не подключать посторонние скрипты без необходимости.
+- A browser-side API key is an accepted risk, not a protected secret.
+- Do not store the key in the repository, builds, URLs, logs, or exports.
+- Do not render AI-generated HTML as trusted content; prevent XSS.
+- Do not load third-party scripts without a concrete need.
 
-### UX и доступность
+### UX and accessibility
 
-- Mobile-first, удобное управление одной рукой, крупные области нажатия.
-- Читаемые немецкие тексты, адаптивная типографика, контраст.
-- Карточки сохраняют контекст текущего предложения.
-- Прокрутка не вызывает ложных tap/long press.
-- Поддерживать увеличение шрифта и альтернативу долгому нажатию.
+- Mobile-first, comfortable one-handed use, and large touch targets.
+- Readable German texts, adaptive typography, and sufficient contrast.
+- Cards preserve the context of the current sentence.
+- Scrolling must not trigger unintended tap/long-press actions.
+- Support font scaling and an alternative to long press.
 
 ### Offline
 
-- AI-генерация/анализ требуют сети.
-- Локальные сохранённые документы доступны без дополнительного запроса AI, если приложение уже открыто.
-- Полный автономный запуск без сети не обязателен в MVP.
+- AI generation and analysis require a network connection.
+- Locally saved documents remain available without another AI request if the application is already open.
+- Fully offline startup is not mandatory for the MVP.
 
-### Диагностика и стоимость
+### Diagnostics and cost
 
-- Локально диагностировать ошибки AI, валидации, сохранения и миграций без секретов.
-- Не выполнять запросы из render path; кешировать, исключать дубликаты.
-- По возможности учитывать количество использованных токенов.
-- Не создавать серверный мониторинг для MVP.
+- Diagnose AI, validation, storage, and migration errors locally without exposing secrets.
+- Do not issue requests from the render path; cache and deduplicate requests.
+- Track token usage where possible.
+- Do not introduce server-side monitoring for the MVP.
 
-### Поддерживаемость
+### Maintainability
 
-- TypeScript strict, lint, форматирование, автоматические unit/integration/UI проверки.
-- Разделять UI, use cases, домен и инфраструктуру; избегать дублирования.
-- Комментарии в коде не требуются, существенные решения — в документации.
+- TypeScript strict, linting, formatting, and automated unit/integration/UI checks.
+- Separate UI, use cases, Domain, and Infrastructure; avoid duplication.
+- Source comments are not required; document important decisions separately.
 
-## 12. Тестирование
+## 12. Testing
 
-**Unit:** алгоритмы повторения/статусов, нормализация лемм, WordInteraction и WordExposure, идемпотентность завершения.
+**Unit:** repetition/status algorithms, lemma normalization, WordInteraction and WordExposure, and idempotent completion.
 
-**Integration:** генерация/сохранение текста, словарный AI mock, грамматика, восстановление сеанса, IndexedDB миграции, экспорт/импорт.
+**Integration:** text generation/storage, vocabulary AI mock, grammar, session recovery, IndexedDB migrations, and export/import.
 
-**UI/E2E:** tap на слово, long press на предложение, отмена при прокрутке, загрузка, сетевые ошибки, сохранение после обновления страницы, основные мобильные сценарии.
+**UI/E2E:** word taps, sentence long presses, cancellation during scrolling, loading, network errors, persistence after refresh, and primary mobile scenarios.
 
-Ручная проверка на реальном Android-телефоне обязательна для поведения жестов. Использовать mock AI Provider в автоматических тестах.
+Manual testing on a real Android phone is required for gesture behavior. Use a mock AI Provider in automated tests.
 
 ## 13. CI/CD
 
-GitHub Actions: установить зависимости → typecheck → lint → тесты → production build → публикация GitHub Pages. Публиковать только после успешных обязательных проверок. Не включать секреты в артефакты.
+GitHub Actions: install dependencies → typecheck → lint → tests → production build → GitHub Pages deployment. Deploy only after all required checks pass. Do not include secrets in artifacts.
 
-## 14. Документация Codex
+## 14. Codex documentation
 
-Поддерживать:
+Maintain:
 
-- `README.md`: запуск и публикация.
-- `docs/requirements.md`: данное ТЗ.
-- `docs/implementation-plan.md`: этапы MVP.
-- `docs/architecture.md`: слои и зависимости.
-- `docs/data-model.md`: сущности, инварианты, миграции.
-- `docs/testing.md`: стратегия тестирования.
-- `docs/adr/`: короткие существенные архитектурные решения.
-- `AGENTS.md`: правила Codex.
+- `README.md`: startup and deployment.
+- `docs/requirements.md`: this specification.
+- `docs/implementation-plan.md`: MVP stages.
+- `docs/architecture.md`: layers and dependencies.
+- `docs/data-model.md`: entities, invariants, and migrations.
+- `docs/testing.md`: testing strategy.
+- `docs/adr/`: short records of significant architectural decisions.
+- `AGENTS.md`: Codex working rules.
 
-Не создавать дублирующие документы. Обновлять тесты и документацию вместе с изменениями поведения. Не изменять данные без миграции. Не переписывать существующие модули без необходимости.
+Do not create duplicate documents. Update tests and documentation when behavior changes. Do not change data without a migration. Do not rewrite existing modules unnecessarily.
 
-## 15. Будущее расширение (не MVP)
+## 15. Future extensions (outside the MVP)
 
-Проверка понимания текста, грамматические упражнения, статистика, интервальное повторение, озвучивание, разговорная практика, адаптивная сложность и синхронизация. Архитектура должна их допускать, но не реализовывать заранее.
+Comprehension checks, grammar exercises, statistics, spaced repetition, text-to-speech, conversational practice, adaptive difficulty, and synchronization. The architecture must allow these without implementing them prematurely.
 
-## 16. Открытые вопросы
+## 16. Open questions
 
-- Конкретная OpenAI-модель.
-- Способ выбора темы текста.
-- Семантика нового учебного сеанса при повторном чтении завершённого текста.
-- Будущая проверка понимания.
-- Альтернативный UI грамматического разбора при недоступном long press.
+- The specific OpenAI model.
+- How text topics are selected.
+- Semantics of starting a new learning session when rereading a completed text.
+- Future comprehension checks.
+- An alternative grammar-analysis UI when long press is unavailable.
