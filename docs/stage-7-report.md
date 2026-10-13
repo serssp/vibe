@@ -2,7 +2,7 @@
 
 Date: 2026-10-13. Scope: the user's explicit authorization to perform all remaining stages 6–8 without intermediate approval.
 
-Status: implementation and automated verification complete. Real Android/model acceptance remains outstanding; deployment evidence will be recorded after publication.
+Status: implementation, automated checks, GitHub Actions deployment and published mock verification complete. Mandatory real Android/model acceptance remains outstanding.
 
 ## Implemented work
 
@@ -21,3 +21,9 @@ The shared checks pass: 158 unit/integration tests, production build, architectu
 Production Chromium downloads an actual backup file, confirms absence of the dummy credential, rejects invalid references, cancels a valid preview, confirms restoration, and verifies recovered sessions/exposures/caches and preserved connection key. Viewing completed history does not create AI requests or change learning facts. The browser also restores 502 documents and verifies initial 20-row rendering and expansion to 40.
 
 All stage 7 functional criteria have automated evidence. Real-phone file selection/download and recovery remain manual checks. Backups contain complete local learning data; device synchronization and offline startup remain outside the MVP. Deployment evidence is tracked in [stage 8](stage-8-report.md).
+
+## Published verification
+
+Code commit `3d6d3e3` passed GitHub Actions build checks and Pages deployment: [run 38359915214](https://github.com/serssp/vibe/actions/runs/38359915214). The JS/CSS asset hashes served by [serssp.github.io/vibe](https://serssp.github.io/vibe/) match the locally verified production build.
+
+All eight daily-workflow groups passed separately against the published site in isolated mobile Chromium: tab/session/position recovery, atomic learning, completed history and explicit rereading, JSON download/validation/cancellation/restore, unresolved marks, contextual rereading, per-word facts and 502-document pagination, and enlarged layout. The large-history scenario completed in about 2 seconds in this environment. API responses were intercepted and mocked; no valid key or real OpenAI model request was used. This is published browser verification, not physical Android or real-model acceptance.
