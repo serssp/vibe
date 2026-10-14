@@ -1,4 +1,12 @@
-import { settings, generation, resume, chooseSentence, library } from './browser-navigation.mjs';
+import {
+  settings,
+  generation,
+  resume,
+  chooseSentence,
+  library,
+  closeSheet,
+  expandSheet,
+} from './browser-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -255,12 +263,12 @@ try {
     await page.getByText('ging — прошедшее время Präteritum.', { exact: true }).count(),
     0,
   );
-  await page.getByRole('button', { name: 'Подробнее', exact: true }).click();
+  await expandSheet(page);
   assert(await page.getByText('ging — прошедшее время Präteritum.', { exact: true }).isVisible());
   assert.equal(requests.word, 1);
   assert.equal((await tally()).vocabulary[0].unknownCount, 1);
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await ging.tap();
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
   await page.locator('.word-meta').waitFor();
@@ -274,7 +282,7 @@ try {
   await page.locator('.word-meta').waitFor();
   assert.equal((await tally()).vocabulary.length, 1);
   assert.equal((await tally()).vocabulary[0].unknownCount, 2);
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   console.log(
     'PASS: touch word lookup, contextual card, repeated taps, persisted vocabulary, cache, undo and verified inflected-form association',
   );
@@ -298,14 +306,14 @@ try {
   assert(await page.getByText('существительное · женский род', { exact: true }).isVisible());
   assert.equal(await page.locator('.tapped-form').count(), 0);
   assert.equal((await tally()).pending, 0);
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await banks.nth(1).tap();
   await page.getByText('банк, финансовое учреждение', { exact: true }).first().waitFor();
   assert(
     await page.getByRole('heading', { name: 'die Bank, die Banken', exact: true }).isVisible(),
   );
   assert.equal((await tally()).vocabulary.filter((word) => word.lemma === 'Bank').length, 2);
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await page
     .locator('.sentence-row')
     .nth(4)
@@ -313,9 +321,9 @@ try {
     .tap();
   await page.getByRole('heading', { name: 'aufstehen', exact: true }).waitFor();
   assert(await page.getByText('stand auf — ist aufgestanden', { exact: true }).isVisible());
-  await page.getByRole('button', { name: 'Подробнее', exact: true }).click();
+  await expandSheet(page);
   assert(await page.getByText('steht … auf', { exact: true }).isVisible());
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   console.log(
     'PASS: failed lookup survives reload, explicit retry, noun article/gender, distinct senses and separated verb components',
   );
@@ -442,7 +450,7 @@ try {
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
   await page.locator('.word-meta').waitFor();
   assert.equal(requests.word, gesturesBefore.word);
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await chooseSentence(page, 0);
   await accessible.click();
   await page.getByRole('heading', { name: 'Разбор предложения', exact: true }).waitFor();
@@ -550,7 +558,7 @@ try {
     'PASS: cached translation and grammar work without network; keyboard word lookup, no raw credential output or page errors',
   );
   const beforeFilter = { ...requests };
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await library(page);
   await page.getByRole('button', { name: 'Словарь', exact: true }).click();
   await page.getByLabel('Поиск в словаре').fill('Bank');

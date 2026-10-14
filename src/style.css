@@ -441,13 +441,29 @@ input[type='range'] {
 }
 .word-sheet {
   padding: 0.75rem 1.15rem 1rem;
+  transform: translateX(-50%) translateY(var(--sheet-drag-y, 0px));
+  transition: transform 0.18s ease;
+}
+.word-sheet.is-dragging {
+  transition: none;
+  user-select: none;
 }
 .word-sheet .sheet-controls {
-  margin-bottom: 0.35rem;
+  margin-bottom: 0;
 }
 .word-sheet .sheet-controls button {
   padding: 0.4rem 0.75rem;
   font-size: 0.875rem;
+}
+.word-sheet .sheet-handle {
+  background: transparent;
+  border-radius: 0.75rem;
+}
+.sheet-gesture-hint {
+  margin: 0 0 0.5rem;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.75rem;
 }
 .word-heading {
   display: flex;

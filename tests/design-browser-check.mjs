@@ -3,7 +3,15 @@ import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { settings, generation, library, resume, chooseSentence } from './browser-navigation.mjs';
+import {
+  settings,
+  generation,
+  library,
+  resume,
+  chooseSentence,
+  swipeSheet,
+  closeSheet,
+} from './browser-navigation.mjs';
 
 const site = process.env.VIBE_SITE ?? 'http://127.0.0.1:4176/vibe/';
 const server = process.env.VIBE_SITE
@@ -105,6 +113,16 @@ try {
           lemma: 'spielen',
           partOfSpeech: 'verb',
           meaningRu: 'играть',
+        });
+      if (input.surfaceForm === 'Kinder')
+        Object.assign(result, {
+          lemma: 'Kind',
+          partOfSpeech: 'noun',
+          article: 'das',
+          gender: 'neuter',
+          nounPlural: 'Kinder',
+          meaningRu: 'ребёнок',
+          formRu: 'Kinder — множественное число существительного Kind. '.repeat(50),
         });
     } else if (kind === 'grammar')
       result = {
@@ -227,7 +245,21 @@ try {
     0,
   );
   await shot('word-compact');
-  await page.getByRole('button', { name: 'Подробнее', exact: true }).click();
+  const sheetHandle = page.getByRole('button', { name: 'Управление карточкой', exact: true });
+  assert.equal(await page.getByRole('button', { name: 'Подробнее', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Закрыть панель', exact: true }).count(), 0);
+  await sheetHandle.press('ArrowUp');
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'), 'true');
+  await sheetHandle.press('ArrowDown');
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'), 'false');
+  for (const options of [{ distance: 16 }, { cancel: true }, { secondary: true }]) {
+    await swipeSheet(page, 'up', options);
+    assert.equal(await sheetHandle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('.is-dragging').count(), 0);
+  }
+  await swipeSheet(page, 'right');
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'), 'false');
+  await swipeSheet(page, 'up', { from: page.getByRole('heading', { name: 'gehen', exact: true }) });
   await delay(100);
   await visibleSelection();
   assert(await page.locator('.word-card blockquote').isVisible());
@@ -250,7 +282,7 @@ try {
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
   await page.locator('.word-meta').waitFor();
   const handle = await page
-    .getByRole('button', { name: 'Закрыть панель жестом вниз' })
+    .getByRole('button', { name: 'Управление карточкой', exact: true })
     .boundingBox();
   assert(handle);
   await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
@@ -270,7 +302,7 @@ try {
   await handleWord.tap();
   await requestStarted;
   await shot('word-loading');
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await swipeSheet(page, 'down');
   await page.locator('.analysis-panel').waitFor({ state: 'detached' });
   release();
   slow = false;
@@ -319,6 +351,35 @@ try {
   await page.locator('.analysis-panel').waitFor({ state: 'detached' });
   console.log(
     'PASS: noun singular article and full plural are visible; irregular verbs show principal parts and regular verbs omit them',
+  );
+  await page.getByRole('button', { name: 'Перевести Kinder', exact: true }).tap();
+  await page.getByRole('heading', { name: 'das Kind, die Kinder', exact: true }).waitFor();
+  await swipeSheet(page, 'up');
+  const scrollPanel = page.locator('.analysis-panel');
+  await scrollPanel.evaluate((node) => {
+    node.scrollTop = 100;
+  });
+  await swipeSheet(page, 'up', { from: scrollPanel });
+  await page.waitForFunction(() => document.querySelector('.analysis-panel')?.scrollTop > 100);
+  assert.equal(await page.locator('.analysis-panel.expanded').count(), 1);
+  await delay(200);
+  await swipeSheet(page, 'down', { from: scrollPanel });
+  assert.equal(await page.locator('.analysis-panel.expanded').count(), 1);
+  await scrollPanel.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await swipeSheet(page, 'down');
+  await scrollPanel.waitFor({ state: 'detached' });
+  assert.equal(requests.word, 5);
+  await word.tap();
+  await page.locator('.word-meta').waitFor();
+  await sheetHandle.click();
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'), 'true');
+  await sheetHandle.click();
+  assert.equal(await sheetHandle.getAttribute('aria-expanded'), 'false');
+  await closeSheet(page);
+  console.log(
+    'PASS: native sheet swipes, mouse drag and keyboard/handle controls; short/horizontal/cancelled/multitouch gestures preserve state; expanded content scrolls without dismissal; loading swipe cancels safely',
   );
   await page.locator('[data-sentence-id]').nth(18).scrollIntoViewIfNeeded();
   await delay(400);

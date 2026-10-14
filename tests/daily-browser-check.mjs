@@ -1,4 +1,4 @@
-import { settings, generation, library, resume } from './browser-navigation.mjs';
+import { settings, generation, library, resume, closeSheet } from './browser-navigation.mjs';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -136,7 +136,7 @@ try {
   await page.getByRole('button', { name: 'Перевести gehen', exact: true }).tap();
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
   await page.locator('.word-meta').waitFor();
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await page.locator('.sentence-row').nth(12).scrollIntoViewIfNeeded();
   await delay(650);
   const first = await data();
@@ -210,7 +210,7 @@ try {
   await page.locator('.word-meta').waitFor();
   assert.equal((await data()).vocabulary[0].status, 'Unknown');
   assert.equal(translations, 1, 'Explicit rereading can reuse the contextual translation cache');
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   console.log(
     'PASS: completed history is read-only, selected history survives refresh, and an explicit new session can mark a Learned word Unknown',
   );
@@ -280,7 +280,7 @@ try {
   const other = page.getByRole('button', { name: 'Перевести heute', exact: true });
   await other.tap();
   await page.locator('.analysis-panel').getByRole('alert').waitFor();
-  await page.getByRole('button', { name: 'Закрыть панель', exact: true }).click();
+  await closeSheet(page);
   await page.getByRole('button', { name: 'Завершить чтение', exact: true }).click();
   await page.getByRole('alert').filter({ hasText: 'незавершённые отметки' }).waitFor();
   assert((await data()).sessions.some((session) => session.status === 'InProgress'));

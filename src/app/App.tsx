@@ -638,6 +638,7 @@ export function App({
       )}
       {route.screen === 'reader' && route.panel === 'analysis' && (wordTarget || grammarTarget) && (
         <FloatingSheet
+          gestureOnly={!!wordTarget}
           className={wordTarget ? 'word-sheet' : undefined}
           expanded={expanded}
           onExpand={() => setExpanded((value) => !value)}

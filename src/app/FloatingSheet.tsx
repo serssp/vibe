@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { useSheetGestures } from './use-sheet-gestures';
 
 export function FloatingSheet({
   children,
@@ -7,6 +8,7 @@ export function FloatingSheet({
   onClose,
   selection,
   className = '',
+  gestureOnly = false,
 }: {
   children: ReactNode;
   expanded: boolean;
@@ -14,10 +16,12 @@ export function FloatingSheet({
   onClose(): void;
   selection: string;
   className?: string;
+  gestureOnly?: boolean;
 }) {
   const sheet = useRef<HTMLElement>(null);
   const dragged = useRef(false);
   const drag = useRef<{ y: number; id: number } | null>(null);
+  useSheetGestures(sheet, gestureOnly, expanded, onExpand, onClose);
   useEffect(() => {
     const element = sheet.current;
     if (!element) return;
@@ -48,6 +52,7 @@ export function FloatingSheet({
       ref={sheet}
       className={`analysis-panel ${expanded ? 'expanded' : ''} ${className}`}
       aria-label="Карточка обучения"
+      tabIndex={-1}
       onKeyDown={(event) => {
         if (event.key === 'Escape') {
           event.preventDefault();
@@ -58,8 +63,24 @@ export function FloatingSheet({
       <div className="sheet-controls">
         <button
           className="sheet-handle secondary"
-          aria-label="Закрыть панель жестом вниз"
+          aria-label={gestureOnly ? 'Управление карточкой' : 'Закрыть панель жестом вниз'}
+          aria-expanded={gestureOnly ? expanded : undefined}
+          aria-describedby={gestureOnly ? 'sheet-gesture-hint' : undefined}
+          onKeyDown={(event) => {
+            if (!gestureOnly) return;
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              if (event.key === 'ArrowUp') {
+                if (!expanded) onExpand();
+              } else if (expanded) onExpand();
+              else onClose();
+            }
+          }}
           onClick={() => {
+            if (gestureOnly) {
+              onExpand();
+              return;
+            }
             if (dragged.current) {
               dragged.current = false;
               return;
@@ -67,6 +88,7 @@ export function FloatingSheet({
             onClose();
           }}
           onPointerDown={(event) => {
+            if (gestureOnly) return;
             dragged.current = false;
             if (event.isPrimary) {
               drag.current = { y: event.clientY, id: event.pointerId };
@@ -74,6 +96,7 @@ export function FloatingSheet({
             }
           }}
           onPointerUp={(event) => {
+            if (gestureOnly) return;
             const start = drag.current;
             drag.current = null;
             if (start && start.id === event.pointerId && event.clientY - start.y > 60) {
@@ -87,13 +110,22 @@ export function FloatingSheet({
         >
           <span />
         </button>
-        <button className="secondary" aria-expanded={expanded} onClick={onExpand}>
-          {expanded ? 'Свернуть' : 'Подробнее'}
-        </button>
-        <button className="secondary" aria-label="Закрыть панель" onClick={onClose}>
-          ×
-        </button>
+        {!gestureOnly && (
+          <button className="secondary" aria-expanded={expanded} onClick={onExpand}>
+            {expanded ? 'Свернуть' : 'Подробнее'}
+          </button>
+        )}
+        {!gestureOnly && (
+          <button className="secondary" aria-label="Закрыть панель" onClick={onClose}>
+            ×
+          </button>
+        )}
       </div>
+      {gestureOnly && (
+        <p className="sheet-gesture-hint" id="sheet-gesture-hint">
+          ↑ Подробнее · ↓ Закрыть
+        </p>
+      )}
       {children}
     </aside>
   );
