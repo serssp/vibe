@@ -24,7 +24,6 @@ export function VocabularyCard({
   result,
   busy,
   onUndo,
-  onClose,
 }: {
   sentence: string;
   surface: string;
@@ -32,55 +31,59 @@ export function VocabularyCard({
   result?: WordLookupResult;
   busy: boolean;
   onUndo(): void;
-  onClose(): void;
 }) {
   const card = result?.translation.card;
+  const lemma = card ? [card.article, card.lemma].filter(Boolean).join(' ') : surface;
+  const showSurface = card && surface !== card.lemma && surface !== lemma;
+  const showExpression = card && ![surface, card.lemma, lemma].includes(card.expression);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [result?.lookup.id]);
   return (
-    <section className="learning-card" aria-labelledby="word-card-heading">
-      <p className="tapped-form" lang="de">
-        {surface}
-      </p>
-      <h2 id="word-card-heading" ref={heading} tabIndex={-1}>
-        {card ? (
-          <span lang="de">
-            {card.article ? `${card.article} ` : ''}
-            {card.lemma}
-          </span>
-        ) : (
-          'Перевод слова'
+    <section className="learning-card word-card" aria-labelledby="word-card-heading">
+      <div className="word-heading">
+        <h2 id="word-card-heading" ref={heading} tabIndex={-1} lang="de">
+          {lemma}
+          {card?.nounPlural && `, die ${card.nounPlural}`}
+        </h2>
+        {card && (
+          <p className="word-meta">
+            {parts[card.partOfSpeech]}
+            {card.gender ? ` · ${genders[card.gender]}` : ''}
+          </p>
         )}
-      </h2>
+      </div>
       {card && (
         <>
+          {card.irregularVerb && (
+            <p className="word-dictionary-forms" lang="de">
+              {card.irregularVerb.preterite} — {card.irregularVerb.perfect}
+            </p>
+          )}
           <p className="word-meaning">{card.meaningRu}</p>
+          {showSurface && (
+            <p className="tapped-form">
+              В тексте: <span lang="de">{surface}</span>
+            </p>
+          )}
           {expanded && (
             <>
               <blockquote lang="de">{sentence}</blockquote>
-              <p>
-                {parts[card.partOfSpeech]}
-                {card.gender ? ` · ${genders[card.gender]}` : ''}
-              </p>
-              <p lang="de">{card.expression}</p>
+              {showExpression && <p lang="de">{card.expression}</p>}
+              <p>{card.formRu}</p>
             </>
           )}
-          <p>{card.formRu}</p>
-          <p className="hint">Отмечено как незнакомое.</p>
         </>
       )}
-      <div className="actions">
-        {result && (
+      {result && (
+        <div className="word-mark">
+          <p className="hint">Отмечено как незнакомое.</p>
           <button className="secondary" disabled={busy} onClick={onUndo}>
             Отменить отметку
           </button>
-        )}
-        <button className="secondary" aria-label="Закрыть карточку" onClick={onClose}>
-          Закрыть
-        </button>
-      </div>
+        </div>
+      )}
     </section>
   );
 }

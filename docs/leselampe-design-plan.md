@@ -249,3 +249,19 @@ Implementation commit `1016a47` passed [GitHub Actions run 38381140392](https://
 Both `tests/daily-browser-check.mjs` and `tests/design-browser-check.mjs` passed against `https://serssp.github.io/vibe/` in isolated Chromium contexts with mocked API responses. The published daily check covered learning/completion/rereading, pending recovery, backup download/validation/restore and 502-record pagination. The design check covered transient Back/Escape/dismissal, selected-word geometry, stale results, appearance/position recovery, local filters, all phone widths with 200% root text, and deep links to a different saved text.
 
 These are automated checks of the deployed application. No real OpenAI request or real Android Chrome verification was performed. The remaining acceptance dependency is the manual device check listed in D6.
+
+### Word card refinement — 2026-10-14
+
+The user authorized a further presentation adjustment after comparing the word dialog with Leselampe. Tapping a word now shows the lemma/article and meaning without repeating identical forms, with part of speech and noun gender beside the heading. A distinct inflected form remains visible. More reveals the full sentence, a distinct expression and the form explanation. Compact spacing and a shared mark/undo row replace the lower duplicate close button; the sheet retains its close, expansion, keyboard and downward-dismissal controls.
+
+Affected modules are VocabularyCard, FloatingSheet, App and word-specific CSS. This update has no data changes, migrations or AI-contract changes; automatic marking, cache reuse, recovery and undo keep their existing behavior. Existing learning and design browser checks cover inflected forms, noun metadata, separable expressions, cancellation and selected-word visibility. The compact mock fixture must occupy less than 35% of a 390×844 viewport and all phone widths retain 200% text support. The compact, expanded and loading word captures above have been refreshed. Verification for this refinement is local with mocked API responses; deployed CI, real OpenAI and Android Chrome have not been checked for this change.
+
+Local verification passed: `npm run check` (160 tests and production build), `npm run test:browser` (all five scripts), and lint/format checks after the final test adjustments. Word-result assertions wait for grammatical metadata because the selected word is now visible in the heading before translation finishes.
+
+### Dictionary forms — 2026-10-14
+
+The user requested noun article/gender and full plural in dictionary style, plus principal parts for irregular verbs, and explicitly waived migration. Word prompt v2 and its strict response schema add nullable nounPlural and irregularVerb fields. The compact card shows `die Bank, die Bänke` and, for `gehen`, `ging — ist gegangen` below the infinitive; regular verbs omit the principal-parts row. Plurals are sense-specific, and irregular forms retain separated prefixes and the Perfekt auxiliary.
+
+This affects WordCard, structured response/storage validation, the word prompt and presentation. Existing cards/backups are accepted with missing optional fields; no stores, indexes, database version, learning facts or connection settings are changed or cleared. Fresh explicit taps use the v2 cache identity, without background enrichment. Acceptance includes visible dictionary forms before expansion, regular-verb omission, separable forms, cache/undo integrity, compatible old backups and no overflow at 320/360/390/430 pixels with 200% text.
+
+Local `npm run check` passed with 172 tests and a production build; all five `npm run test:browser` scripts passed with mocked API responses. Current captures: [noun](screenshots/leselampe/word-noun.png), [irregular verb](screenshots/leselampe/word-compact.png), [expanded verb](screenshots/leselampe/word-expanded.png). Deployed CI, real OpenAI responses and Android Chrome were not verified for this change.

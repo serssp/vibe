@@ -2,6 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { OpenAIConnectionProvider } from '../src/infrastructure/ai/openai-connection';
 import { ConnectionError } from '../src/application/ports/ai-provider';
 import { mockProvider } from './fixtures/provider';
+import { parseWord } from '../src/infrastructure/ai/structured-outputs';
+
+const dictionaryNoun = () => ({
+  lemma: 'Bank',
+  partOfSpeech: 'noun',
+  article: 'die',
+  gender: 'feminine',
+  meaningRu: 'скамейка',
+  formRu: 'Дательный падеж.',
+  expression: 'auf der Bank',
+  matchedVocabularyId: null,
+  nounPlural: 'Bänke',
+  irregularVerb: null,
+});
 
 const request = () => ({
   apiKey: 'test-credential',
@@ -69,16 +83,7 @@ describe('Structured OpenAI transport', () => {
   });
 
   it('validates noun gender and keeps an explanation of separable/multiword forms', async () => {
-    const card = {
-      lemma: 'Bank',
-      partOfSpeech: 'noun',
-      article: 'die',
-      gender: 'feminine',
-      meaningRu: 'скамейка',
-      formRu: 'Дательный падеж.',
-      expression: 'auf der Bank',
-      matchedVocabularyId: null,
-    };
+    const card = dictionaryNoun();
     const fetcher = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(response(card))
@@ -93,6 +98,8 @@ describe('Structured OpenAI transport', () => {
           formRu: 'steht и auf образуют отделяемый глагол.',
           expression: 'steht … auf',
           matchedVocabularyId: null,
+          nounPlural: null,
+          irregularVerb: { preterite: 'stand auf', perfect: 'ist aufgestanden' },
         }),
       );
     const provider = new OpenAIConnectionProvider(fetcher);
@@ -105,6 +112,13 @@ describe('Structured OpenAI transport', () => {
       knownVocabulary: [],
     };
     expect((await provider.translate(input)).card.gender).toBe('feminine');
+    expect(provider.promptVersions.word).toBe('2');
+    const payload = JSON.parse(fetcher.mock.calls[0]![1]!.body as string);
+    expect(payload.text.format.schema.required).toContain('nounPlural');
+    expect(payload.text.format.schema.properties.irregularVerb.anyOf[0].required).toEqual([
+      'preterite',
+      'perfect',
+    ]);
     await expect(provider.translate(input)).rejects.toBeInstanceOf(ConnectionError);
     expect(
       (
@@ -117,6 +131,48 @@ describe('Structured OpenAI transport', () => {
         })
       ).card,
     ).toMatchObject({ lemma: 'aufstehen', expression: 'steht … auf' });
+  });
+
+  it('accepts nouns without a plural and regular verbs without principal parts', () => {
+    expect(
+      parseWord({ ...dictionaryNoun(), lemma: 'Milch', nounPlural: null }).nounPlural,
+    ).toBeNull();
+    expect(
+      parseWord({
+        ...dictionaryNoun(),
+        lemma: 'spielen',
+        partOfSpeech: 'verb',
+        article: null,
+        gender: null,
+        nounPlural: null,
+        irregularVerb: null,
+      }).irregularVerb,
+    ).toBeNull();
+  });
+
+  it.each([
+    { nounPlural: '' },
+    { nounPlural: 12 },
+    { nounPlural: undefined },
+    { irregularVerb: { preterite: 'ging', perfect: 'ist gegangen' } },
+    { partOfSpeech: 'verb', article: null, gender: null, irregularVerb: null },
+    { partOfSpeech: 'verb', article: null, gender: null, nounPlural: null, irregularVerb: {} },
+    {
+      partOfSpeech: 'verb',
+      article: null,
+      gender: null,
+      nounPlural: null,
+      irregularVerb: { preterite: '', perfect: 'ist gegangen' },
+    },
+    {
+      partOfSpeech: 'verb',
+      article: null,
+      gender: null,
+      nounPlural: null,
+      irregularVerb: { preterite: 'ging', perfect: 'ist gegangen', apiKey: 'test-credential' },
+    },
+  ])('rejects invalid dictionary fields %#', (fields) => {
+    expect(() => parseWord({ ...dictionaryNoun(), ...fields })).toThrow(ConnectionError);
   });
 
   it('rejects invented or mismatched vocabulary candidate IDs', async () => {

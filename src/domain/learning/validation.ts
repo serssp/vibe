@@ -10,10 +10,10 @@ function requireValid(condition: unknown): asserts condition {
   if (!condition) throw new InvalidLearningData();
 }
 
-function object(value: unknown, keys: string[]): Record<string, unknown> {
+function object(value: unknown, keys: string[], optional: string[] = []): Record<string, unknown> {
   requireValid(value !== null && typeof value === 'object' && !Array.isArray(value));
   const record = value as Record<string, unknown>;
-  requireValid(Object.keys(record).length === keys.length);
+  requireValid(Object.keys(record).every((key) => keys.includes(key) || optional.includes(key)));
   requireValid(keys.every((key) => Object.hasOwn(record, key)));
   return record;
 }
@@ -272,16 +272,20 @@ function wordTranslation(value: unknown) {
   number(v.start, true);
   number(v.end, true);
   requireValid(v.end > v.start);
-  const card = object(v.card, [
-    'lemma',
-    'partOfSpeech',
-    'article',
-    'gender',
-    'meaningRu',
-    'formRu',
-    'expression',
-    'matchedVocabularyId',
-  ]);
+  const card = object(
+    v.card,
+    [
+      'lemma',
+      'partOfSpeech',
+      'article',
+      'gender',
+      'meaningRu',
+      'formRu',
+      'expression',
+      'matchedVocabularyId',
+    ],
+    ['nounPlural', 'irregularVerb'],
+  );
   for (const key of ['lemma', 'partOfSpeech', 'meaningRu', 'formRu', 'expression'])
     nonempty(card[key]);
   oneOf(card.partOfSpeech, [
@@ -307,6 +311,16 @@ function wordTranslation(value: unknown) {
       : card.article === null && card.gender === null,
   );
   if (card.matchedVocabularyId !== null) nonempty(card.matchedVocabularyId);
+  if (Object.hasOwn(card, 'nounPlural') && card.nounPlural !== null) {
+    requireValid(card.partOfSpeech === 'noun');
+    nonempty(card.nounPlural);
+  }
+  if (Object.hasOwn(card, 'irregularVerb') && card.irregularVerb !== null) {
+    requireValid(card.partOfSpeech === 'verb');
+    const forms = object(card.irregularVerb, ['preterite', 'perfect']);
+    nonempty(forms.preterite);
+    nonempty(forms.perfect);
+  }
 }
 
 export function validateLearningWrite(value: unknown): asserts value is LearningWrite {

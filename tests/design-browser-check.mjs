@@ -63,6 +63,7 @@ try {
         title: `Ein kleiner Lesetag ${requests.generation}`,
         sentences: [
           'Wir gehen heute in den Park.',
+          'Auf der Bank spielen die Kinder.',
           ...Array.from(
             { length: 42 },
             (_, index) =>
@@ -86,7 +87,25 @@ try {
         formRu: 'Значение слова в этом предложении.',
         expression: input.surfaceForm,
         matchedVocabularyId: null,
+        nounPlural: null,
+        irregularVerb:
+          input.surfaceForm === 'gehen' ? { preterite: 'ging', perfect: 'ist gegangen' } : null,
       };
+      if (input.surfaceForm === 'Bank')
+        Object.assign(result, {
+          lemma: 'Bank',
+          partOfSpeech: 'noun',
+          article: 'die',
+          gender: 'feminine',
+          meaningRu: 'скамейка',
+          nounPlural: 'Bänke',
+        });
+      if (input.surfaceForm === 'spielen')
+        Object.assign(result, {
+          lemma: 'spielen',
+          partOfSpeech: 'verb',
+          meaningRu: 'играть',
+        });
     } else if (kind === 'grammar')
       result = {
         rules: Array.from({ length: 4 }, (_, index) => ({
@@ -186,6 +205,7 @@ try {
   const word = page.getByRole('button', { name: 'Перевести gehen', exact: true });
   await word.tap();
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
+  await page.locator('.word-meta').waitFor();
   const visibleSelection = async () => {
     const selected = await page.locator('.word.selected').boundingBox();
     const panel = await page.locator('.analysis-panel').boundingBox();
@@ -196,10 +216,22 @@ try {
   };
   await delay(100);
   await visibleSelection();
+  const compactPanel = await page.locator('.analysis-panel').boundingBox();
+  assert(compactPanel && compactPanel.height < 844 * 0.35);
+  assert(await page.locator('.word-meta').getByText('глагол', { exact: true }).isVisible());
+  assert(await page.getByText('ging — ist gegangen', { exact: true }).isVisible());
+  assert.equal(await page.locator('.tapped-form').count(), 0);
+  assert.equal(await page.locator('.word-card blockquote').count(), 0);
+  assert.equal(
+    await page.getByRole('button', { name: 'Закрыть карточку', exact: true }).count(),
+    0,
+  );
   await shot('word-compact');
   await page.getByRole('button', { name: 'Подробнее', exact: true }).click();
   await delay(100);
   await visibleSelection();
+  assert(await page.locator('.word-card blockquote').isVisible());
+  assert(await page.getByText('Значение слова в этом предложении.', { exact: true }).isVisible());
   await shot('word-expanded');
   await page.goBack();
   await page.locator('.analysis-panel').waitFor({ state: 'detached' });
@@ -216,6 +248,7 @@ try {
   await page.locator('.analysis-panel').waitFor({ state: 'detached' });
   await word.tap();
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
+  await page.locator('.word-meta').waitFor();
   const handle = await page
     .getByRole('button', { name: 'Закрыть панель жестом вниз' })
     .boundingBox();
@@ -245,6 +278,7 @@ try {
   assert.equal((await snapshot()).interactions.length, markedBeforeSlow);
   await word.tap();
   await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
+  await page.locator('.word-meta').waitFor();
   await delay(100);
   assert.equal(await page.getByRole('heading', { name: 'heute', exact: true }).count(), 0);
   assert.equal((await snapshot()).interactions.length, markedBeforeSlow + 1);
@@ -264,6 +298,27 @@ try {
   );
   console.log(
     'PASS: Back/Escape close sheets; actual compact/expanded sheet geometry keeps words visible; close during loading ignores late results, preserves pending recovery and cache marks/undo',
+  );
+  await page.getByRole('button', { name: 'Перевести Bank', exact: true }).tap();
+  await page.getByRole('heading', { name: 'die Bank, die Bänke', exact: true }).waitFor();
+  assert(await page.getByText('существительное · женский род', { exact: true }).isVisible());
+  await shot('word-noun');
+  await page
+    .locator('.word-mark')
+    .getByRole('button', { name: 'Отменить отметку', exact: true })
+    .click();
+  await page.locator('.analysis-panel').waitFor({ state: 'detached' });
+  await page.getByRole('button', { name: 'Перевести spielen', exact: true }).tap();
+  await page.locator('.word-meta').waitFor();
+  assert.equal(await page.locator('.word-dictionary-forms').count(), 0);
+  assert(await page.getByRole('heading', { name: 'spielen', exact: true }).isVisible());
+  await page
+    .locator('.word-mark')
+    .getByRole('button', { name: 'Отменить отметку', exact: true })
+    .click();
+  await page.locator('.analysis-panel').waitFor({ state: 'detached' });
+  console.log(
+    'PASS: noun singular article and full plural are visible; irregular verbs show principal parts and regular verbs omit them',
   );
   await page.locator('[data-sentence-id]').nth(18).scrollIntoViewIfNeeded();
   await delay(400);
@@ -366,9 +421,18 @@ try {
       await noOverflow(`Reader at ${width}/${size}`);
       await word.tap();
       await page.getByRole('heading', { name: 'gehen', exact: true }).waitFor();
+      await page.locator('.word-meta').waitFor();
       await noOverflow(`Sheet at ${width}/${size}`);
       await page
         .locator('.analysis-panel')
+        .getByRole('button', { name: 'Отменить отметку', exact: true })
+        .click();
+      await page.locator('.analysis-panel').waitFor({ state: 'detached' });
+      await page.getByRole('button', { name: 'Перевести Bank', exact: true }).tap();
+      await page.getByRole('heading', { name: 'die Bank, die Bänke', exact: true }).waitFor();
+      await noOverflow(`Noun sheet at ${width}/${size}`);
+      await page
+        .locator('.word-mark')
         .getByRole('button', { name: 'Отменить отметку', exact: true })
         .click();
       await page.locator('.analysis-panel').waitFor({ state: 'detached' });

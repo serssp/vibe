@@ -6,12 +6,14 @@ export function FloatingSheet({
   onExpand,
   onClose,
   selection,
+  className = '',
 }: {
   children: ReactNode;
   expanded: boolean;
   onExpand(): void;
   onClose(): void;
   selection: string;
+  className?: string;
 }) {
   const sheet = useRef<HTMLElement>(null);
   const dragged = useRef(false);
@@ -44,7 +46,7 @@ export function FloatingSheet({
   return (
     <aside
       ref={sheet}
-      className={`analysis-panel ${expanded ? 'expanded' : ''}`}
+      className={`analysis-panel ${expanded ? 'expanded' : ''} ${className}`}
       aria-label="Карточка обучения"
       onKeyDown={(event) => {
         if (event.key === 'Escape') {

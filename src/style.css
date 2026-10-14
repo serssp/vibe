@@ -439,6 +439,62 @@ input[type='range'] {
   font-size: 0.9rem;
   margin-top: 0;
 }
+.word-sheet {
+  padding: 0.75rem 1.15rem 1rem;
+}
+.word-sheet .sheet-controls {
+  margin-bottom: 0.35rem;
+}
+.word-sheet .sheet-controls button {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+}
+.word-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.65rem;
+}
+.word-heading h2 {
+  margin: 0;
+}
+.word-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.word-dictionary-forms {
+  font-family: var(--serif);
+  line-height: 1.4;
+}
+.word-card .word-meaning {
+  margin-block: 0.25rem 0.5rem;
+}
+.word-card .tapped-form {
+  margin-block: 0 0.5rem;
+}
+.word-card blockquote {
+  margin-block: 0.65rem;
+}
+.word-card > p {
+  margin-block: 0.5rem;
+}
+.word-mark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin-top: 0.5rem;
+}
+.word-mark .hint {
+  flex: 1;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.word-mark button {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.875rem;
+}
 .history-list > h2,
 .vocabulary-list > h2 {
   font-size: 1.2rem;

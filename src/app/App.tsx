@@ -638,6 +638,7 @@ export function App({
       )}
       {route.screen === 'reader' && route.panel === 'analysis' && (wordTarget || grammarTarget) && (
         <FloatingSheet
+          className={wordTarget ? 'word-sheet' : undefined}
           expanded={expanded}
           onExpand={() => setExpanded((value) => !value)}
           onClose={closeAnalysis}
@@ -657,7 +658,6 @@ export function App({
               onUndo={() => {
                 if (wordResult) void undo(wordResult.lookup.id);
               }}
-              onClose={closeAnalysis}
             />
           )}
           {grammarTarget && (

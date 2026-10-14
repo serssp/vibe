@@ -21,4 +21,6 @@ export interface WordCard {
   formRu: string;
   expression: string;
   matchedVocabularyId: string | null;
+  nounPlural?: string | null;
+  irregularVerb?: { preterite: string; perfect: string } | null;
 }

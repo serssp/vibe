@@ -20,6 +20,8 @@ export function mockProvider(): LearningAIProvider {
         formRu: 'ging — прошедшее время Präteritum',
         expression: 'ging',
         matchedVocabularyId: null,
+        nounPlural: null,
+        irregularVerb: { preterite: 'ging', perfect: 'ist gegangen' },
       },
       totalTokens: 30,
     }),

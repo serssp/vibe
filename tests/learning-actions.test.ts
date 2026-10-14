@@ -117,6 +117,26 @@ describe('Contextual vocabulary learning', () => {
     });
     expect(await words.pending(selection.sessionId)).toEqual([]);
   });
+  it('uses the new word prompt cache without rewriting previous cards or adding background requests', async () => {
+    const { repository, provider, request, selection, words } = await setup();
+    const first = await words.lookup({ ...request, selection });
+    provider.promptVersions.word = '2';
+    vi.mocked(provider.translate).mockResolvedValueOnce({
+      card: { ...first.translation.card, matchedVocabularyId: first.entry.id },
+    });
+    const second = await words.lookup({ ...request, selection });
+    expect(second.cached).toBe(false);
+    expect(second.translation.card.irregularVerb).toEqual({
+      preterite: 'ging',
+      perfect: 'ist gegangen',
+    });
+    expect(second.entry.unknownCount).toBe(2);
+    expect((await repository.snapshot()).wordTranslations).toContainEqual(first.translation);
+    const third = await words.lookup({ ...request, selection });
+    expect(third.cached).toBe(true);
+    expect(provider.translate).toHaveBeenCalledTimes(2);
+    expect(await repository.getWordInteractions(selection.sessionId)).toHaveLength(3);
+  });
 
   it('links ging and gehe to one verified lemma/sense across different contexts', async () => {
     const { provider, request, selection, words, generated } = await setup();

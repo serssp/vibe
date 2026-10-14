@@ -32,6 +32,57 @@ describe('Versioned learning backups', () => {
     expect(await repository.snapshot()).toEqual(preview);
     await repository.close();
   });
+  it.each(['legacy', 'dictionary'])(
+    'round trips %s word cards without a migration',
+    async (kind) => {
+      const { repository, backups } = setup();
+      const card = {
+        lemma: 'gehen',
+        partOfSpeech: 'verb' as const,
+        article: null,
+        gender: null,
+        meaningRu: 'идти',
+        formRu: 'Настоящее время.',
+        expression: 'gehe',
+        matchedVocabularyId: null,
+        ...(kind === 'dictionary'
+          ? {
+              nounPlural: null,
+              irregularVerb: { preterite: 'ging', perfect: 'ist gegangen' },
+            }
+          : {}),
+      };
+      await repository.commit({
+        ...learningFixture(),
+        wordTranslations: [
+          {
+            id: 'translation-1',
+            textId: 'text-1',
+            sentenceId: 'text-1:1',
+            start: 4,
+            end: 8,
+            aiModel: 'test-model',
+            promptVersion: kind === 'dictionary' ? '2' : '1',
+            vocabularyEntryId: 'word-1',
+            card,
+          },
+        ],
+      });
+      const content = await backups.exportData();
+      const preview = backups.preview(content);
+      await backups.restore(preview);
+      expect((await repository.snapshot()).wordTranslations[0]!.card).toEqual(card);
+      const invalid = JSON.parse(content);
+      invalid.data.wordTranslations[0].card.irregularVerb = {
+        preterite: 'ging',
+        perfect: 'ist gegangen',
+        apiKey: 'test-credential',
+      };
+      expect(() => backups.preview(JSON.stringify(invalid))).toThrow('некорректен');
+      expect((await repository.snapshot()).wordTranslations[0]!.card).toEqual(card);
+      await repository.close();
+    },
+  );
   it('preserves valid UTC timestamps with and without milliseconds', async () => {
     const { repository, backups } = setup();
     const fixture = learningFixture();

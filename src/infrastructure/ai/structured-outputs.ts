@@ -57,6 +57,10 @@ export const schemas = {
     formRu: string,
     expression: string,
     matchedVocabularyId: nullableString,
+    nounPlural: nullableString,
+    irregularVerb: {
+      anyOf: [object({ preterite: string, perfect: string }), { type: 'null' }],
+    },
   }),
   grammar: object({ rules: { type: 'array', items: rule } }),
 };
@@ -122,6 +126,8 @@ export function parseWord(value: unknown): WordCard {
     'formRu',
     'expression',
     'matchedVocabularyId',
+    'nounPlural',
+    'irregularVerb',
   ]);
   for (const key of ['lemma', 'meaningRu', 'formRu', 'expression']) nonempty(data[key]);
   valid(parts.includes(data.partOfSpeech as string));
@@ -134,6 +140,16 @@ export function parseWord(value: unknown): WordCard {
       : data.article === null && data.gender === null,
   );
   if (data.matchedVocabularyId !== null) nonempty(data.matchedVocabularyId);
+  if (data.nounPlural !== null) {
+    valid(data.partOfSpeech === 'noun');
+    nonempty(data.nounPlural);
+  }
+  if (data.irregularVerb !== null) {
+    valid(data.partOfSpeech === 'verb');
+    const forms = record(data.irregularVerb, ['preterite', 'perfect']);
+    nonempty(forms.preterite);
+    nonempty(forms.perfect);
+  }
   return data as unknown as WordCard;
 }
 
